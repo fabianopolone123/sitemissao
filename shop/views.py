@@ -1,4 +1,4 @@
-import hashlib
+﻿import hashlib
 import hmac
 import json
 import os
@@ -118,7 +118,7 @@ def _build_cart_payload(cart):
 
 def _staff_guard(request):
     if not request.user.is_authenticated:
-        return JsonResponse({'error': 'Faça login primeiro.'}, status=401)
+        return JsonResponse({'error': 'FaÃ§a login primeiro.'}, status=401)
     return None
 
 
@@ -132,14 +132,14 @@ def _save_product_from_request(request, product=None):
 
     product.name = request.POST.get('name', '').strip()
     product.description = request.POST.get('description', '').strip()
-    product.cause = request.POST.get('cause', '').strip() or 'Missões'
+    product.cause = request.POST.get('cause', '').strip() or 'MissÃµes'
     active_value = request.POST.get('active', 'false').strip().lower()
     product.active = active_value in {'true', '1', 'on', 'yes'}
 
     try:
         product.price = Decimal(request.POST.get('price', '0').replace(',', '.'))
     except (InvalidOperation, AttributeError):
-        return None, 'Preço inválido.'
+        return None, 'PreÃ§o invÃ¡lido.'
 
     image_url = request.POST.get('image_url', '').strip()
     image_file = request.FILES.get('image_file')
@@ -153,7 +153,7 @@ def _save_product_from_request(request, product=None):
         product.image_file = image_file
 
     if not product.name:
-        return None, 'Nome do produto é obrigatório.'
+        return None, 'Nome do produto Ã© obrigatÃ³rio.'
 
     product.save()
     variants_text = request.POST.get('variants_text', '').strip()
@@ -162,14 +162,14 @@ def _save_product_from_request(request, product=None):
         lines = [line.strip() for line in variants_text.splitlines() if line.strip()]
         for line in lines:
             if '|' not in line:
-                return None, 'Formato de variação inválido. Use: nome|preço'
+                return None, 'Formato de variaÃ§Ã£o invÃ¡lido. Use: nome|preÃ§o'
             variant_name, variant_price_text = [part.strip() for part in line.split('|', 1)]
             if not variant_name:
-                return None, 'Nome da variação é obrigatório.'
+                return None, 'Nome da variaÃ§Ã£o Ã© obrigatÃ³rio.'
             try:
                 variant_price = Decimal(variant_price_text.replace(',', '.'))
             except (InvalidOperation, AttributeError):
-                return None, f'Preço inválido na variação: {variant_name}'
+                return None, f'PreÃ§o invÃ¡lido na variaÃ§Ã£o: {variant_name}'
             parsed_variants.append((variant_name, variant_price))
 
     product.variants.all().delete()
@@ -190,7 +190,7 @@ def _mp_access_token():
 def _mp_api_request(method, path, payload=None):
     token = _mp_access_token()
     if not token:
-        raise ValueError('MP_ACCESS_TOKEN_PROD não configurado no servidor.')
+        raise ValueError('MP_ACCESS_TOKEN_PROD nÃ£o configurado no servidor.')
 
     url = f'https://api.mercadopago.com{path}'
     headers = {
@@ -229,7 +229,7 @@ def _create_mp_pix_payment(order):
     external_reference = f'ORDER_{order.id}'
     payload = {
         'transaction_amount': float(order.total),
-        'description': f'Pedido #{order.id} - Loja Missão Andrews',
+        'description': f'Pedido #{order.id} - Loja MissÃ£o Andrews',
         'payment_method_id': 'pix',
         'external_reference': external_reference,
         'notification_url': os.getenv('MP_NOTIFICATION_URL', 'https://missaoandrewsc.com.br/payments/webhook/'),
@@ -245,7 +245,7 @@ def _create_mp_pix_payment(order):
     qr_base64 = tx_data.get('qr_code_base64', '')
 
     if not pix_code or not qr_base64:
-        raise ValueError('Mercado Pago não retornou QR Code Pix para este pagamento.')
+        raise ValueError('Mercado Pago nÃ£o retornou QR Code Pix para este pagamento.')
 
     return {
         'payment_id': str(payment.get('id', '')),
@@ -377,7 +377,7 @@ def auth_login(request):
 
     user = authenticate(request, username=username, password=password)
     if not user:
-        return JsonResponse({'error': 'Usuário ou senha inválidos.'}, status=400)
+        return JsonResponse({'error': 'UsuÃ¡rio ou senha invÃ¡lidos.'}, status=400)
 
     login(request, user)
     return JsonResponse(
@@ -461,27 +461,22 @@ def manage_products_delete_page(request, product_id):
 @login_required
 @user_passes_test(_can_manage)
 @require_POST
-def manage_order_payment_page(request, order_id):
+def manage_order_delivery_page(request, order_id):
     order = get_object_or_404(Order, id=order_id)
     action = request.POST.get('action', '').strip().lower()
 
-    if action == 'mark_paid':
-        order.is_paid = True
-        order.paid_at = timezone.now()
-        order.mp_status = 'approved'
-        order.save(update_fields=['is_paid', 'paid_at', 'mp_status'])
-        messages.success(request, f'Pedido #{order.id} marcado como pago.')
-    elif action == 'mark_unpaid':
-        order.is_paid = False
-        order.paid_at = None
-        if order.mp_status == 'approved':
-            order.mp_status = 'pending'
-            order.save(update_fields=['is_paid', 'paid_at', 'mp_status'])
-        else:
-            order.save(update_fields=['is_paid', 'paid_at'])
-        messages.success(request, f'Pedido #{order.id} marcado como não pago.')
+    if action == 'mark_delivered':
+        order.is_delivered = True
+        order.delivered_at = timezone.now()
+        order.save(update_fields=['is_delivered', 'delivered_at'])
+        messages.success(request, f'Pedido #{order.id} marcado como entregue.')
+    elif action == 'mark_undelivered':
+        order.is_delivered = False
+        order.delivered_at = None
+        order.save(update_fields=['is_delivered', 'delivered_at'])
+        messages.success(request, f'Pedido #{order.id} marcado como nao entregue.')
     else:
-        messages.error(request, 'Ação inválida para status de pagamento.')
+        messages.error(request, 'Acao invalida para status de entrega.')
 
     return redirect('manage_products_page')
 
@@ -496,21 +491,21 @@ def manage_users_create_page(request):
     is_staff = request.POST.get('is_staff', '').strip().lower() in {'1', 'true', 'on', 'yes'}
 
     if not username or not password:
-        messages.error(request, 'Preencha usuário e senha para criar o login.')
+        messages.error(request, 'Preencha usuÃ¡rio e senha para criar o login.')
         return redirect('manage_products_page')
 
     if password != password_confirm:
-        messages.error(request, 'As senhas não conferem.')
+        messages.error(request, 'As senhas nÃ£o conferem.')
         return redirect('manage_products_page')
 
     if User.objects.filter(username=username).exists():
-        messages.error(request, 'Este nome de usuário já existe.')
+        messages.error(request, 'Este nome de usuÃ¡rio jÃ¡ existe.')
         return redirect('manage_products_page')
 
     user = User.objects.create_user(username=username, password=password)
     user.is_staff = is_staff
     user.save(update_fields=['is_staff'])
-    messages.success(request, f'Usuário "{username}" criado com sucesso.')
+    messages.success(request, f'UsuÃ¡rio "{username}" criado com sucesso.')
     return redirect('manage_products_page')
 
 
@@ -559,7 +554,7 @@ def cart_add(request, product_id):
         try:
             variant = ProductVariant.objects.get(id=int(variant_id), product=product, active=True)
         except (ProductVariant.DoesNotExist, ValueError, TypeError):
-            return JsonResponse({'error': 'Variação inválida para este produto.'}, status=400)
+            return JsonResponse({'error': 'VariaÃ§Ã£o invÃ¡lida para este produto.'}, status=400)
 
     try:
         quantity = int(request.POST.get('quantity', 1))
@@ -583,7 +578,7 @@ def cart_update(request, product_id):
         try:
             variant = ProductVariant.objects.get(id=int(variant_id), product=product, active=True)
         except (ProductVariant.DoesNotExist, ValueError, TypeError):
-            return JsonResponse({'error': 'Variação inválida para este produto.'}, status=400)
+            return JsonResponse({'error': 'VariaÃ§Ã£o invÃ¡lida para este produto.'}, status=400)
 
     action = request.POST.get('action', 'set')
     cart = _get_cart(request.session)
@@ -626,7 +621,7 @@ def checkout_finalize(request):
     cart = _get_cart(request.session)
     cart_payload = _build_cart_payload(cart)
     if cart_payload['count'] <= 0:
-        return JsonResponse({'error': 'Seu carrinho está vazio.'}, status=400)
+        return JsonResponse({'error': 'Seu carrinho estÃ¡ vazio.'}, status=400)
 
     amount = Decimal(cart_payload['total'])
     order = Order.objects.create(
@@ -668,7 +663,7 @@ def checkout_finalize(request):
 
     return JsonResponse(
         {
-            'message': 'Pedido gerado com sucesso. Faça o pagamento no Pix.',
+            'message': 'Pedido gerado com sucesso. FaÃ§a o pagamento no Pix.',
             'order_id': order.id,
             'order_status': order.mp_status,
             'status_label': _order_status_label(order),
@@ -711,7 +706,7 @@ def payments_webhook(request):
         return JsonResponse({'ok': True, 'ignored': 'without_payment_id'})
 
     if not _is_valid_mp_webhook_signature(request, payment_id):
-        return JsonResponse({'error': 'assinatura inválida'}, status=401)
+        return JsonResponse({'error': 'assinatura invÃ¡lida'}, status=401)
 
     try:
         payment_data = _get_mp_payment(payment_id)
@@ -733,3 +728,5 @@ def payments_webhook(request):
 
     _sync_order_from_mp_payment(order, payment_data)
     return JsonResponse({'ok': True})
+
+

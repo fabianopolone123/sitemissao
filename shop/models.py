@@ -57,6 +57,8 @@ class Order(models.Model):
     items_json = models.JSONField(default=list)
     is_paid = models.BooleanField(default=False)
     paid_at = models.DateTimeField(blank=True, null=True)
+    is_delivered = models.BooleanField(default=False)
+    delivered_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
