@@ -6,9 +6,11 @@ import uuid
 from decimal import Decimal, InvalidOperation
 
 import qrcode
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth import authenticate, login, logout
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import Order, Product
@@ -135,6 +137,43 @@ def _staff_guard(request):
     return None
 
 
+def _is_staff(user):
+    return user.is_authenticated and user.is_staff
+
+
+def _save_product_from_request(request, product=None):
+    if product is None:
+        product = Product()
+
+    product.name = request.POST.get('name', '').strip()
+    product.description = request.POST.get('description', '').strip()
+    product.cause = request.POST.get('cause', '').strip() or 'Missões'
+    active_value = request.POST.get('active', 'false').strip().lower()
+    product.active = active_value in {'true', '1', 'on', 'yes'}
+
+    try:
+        product.price = Decimal(request.POST.get('price', '0').replace(',', '.'))
+    except (InvalidOperation, AttributeError):
+        return None, 'Preço inválido.'
+
+    image_url = request.POST.get('image_url', '').strip()
+    image_file = request.FILES.get('image_file')
+
+    if image_url:
+        product.image_url = image_url
+    elif not product.image_url:
+        product.image_url = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=900&q=80'
+
+    if image_file:
+        product.image_file = image_file
+
+    if not product.name:
+        return None, 'Nome do produto é obrigatório.'
+
+    product.save()
+    return product, None
+
+
 @require_GET
 def home(request):
     products = Product.objects.filter(active=True)
@@ -177,6 +216,53 @@ def auth_logout(request):
     return JsonResponse({'message': 'Logout realizado com sucesso.'})
 
 
+@login_required
+@user_passes_test(_is_staff)
+@require_GET
+def manage_products_page(request):
+    products = Product.objects.all().order_by('name')
+    edit_id = request.GET.get('edit')
+    editing_product = None
+    if edit_id:
+        editing_product = get_object_or_404(Product, id=edit_id)
+
+    return render(
+        request,
+        'shop/manage_products.html',
+        {
+            'products': products,
+            'editing_product': editing_product,
+        },
+    )
+
+
+@login_required
+@user_passes_test(_is_staff)
+@require_POST
+def manage_products_save_page(request):
+    product_id = request.POST.get('product_id', '').strip()
+    product = get_object_or_404(Product, id=product_id) if product_id else None
+    saved_product, error = _save_product_from_request(request, product)
+    if error:
+        messages.error(request, error)
+        if product_id:
+            return redirect(f"/manage/products/page/?edit={product_id}")
+        return redirect('manage_products_page')
+
+    messages.success(request, 'Produto salvo com sucesso.')
+    return redirect(f"/manage/products/page/?edit={saved_product.id}")
+
+
+@login_required
+@user_passes_test(_is_staff)
+@require_POST
+def manage_products_delete_page(request, product_id):
+    product = get_object_or_404(Product, id=product_id)
+    product.delete()
+    messages.success(request, 'Produto removido com sucesso.')
+    return redirect('manage_products_page')
+
+
 @require_GET
 def product_manage_list(request):
     guard = _staff_guard(request)
@@ -194,38 +280,12 @@ def product_manage_save(request):
         return guard
 
     product_id = request.POST.get('product_id', '').strip()
-    if product_id:
-        product = get_object_or_404(Product, id=product_id)
-    else:
-        product = Product()
+    product = get_object_or_404(Product, id=product_id) if product_id else None
+    saved_product, error = _save_product_from_request(request, product)
+    if error:
+        return JsonResponse({'error': error}, status=400)
 
-    product.name = request.POST.get('name', '').strip()
-    product.description = request.POST.get('description', '').strip()
-    product.cause = request.POST.get('cause', '').strip() or 'Missões'
-    active_value = request.POST.get('active', 'true').strip().lower()
-    product.active = active_value in {'true', '1', 'on', 'yes'}
-
-    try:
-        product.price = Decimal(request.POST.get('price', '0').replace(',', '.'))
-    except (InvalidOperation, AttributeError):
-        return JsonResponse({'error': 'Preço inválido.'}, status=400)
-
-    image_url = request.POST.get('image_url', '').strip()
-    image_file = request.FILES.get('image_file')
-
-    if image_url:
-        product.image_url = image_url
-    elif not product.image_url:
-        product.image_url = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=900&q=80'
-
-    if image_file:
-        product.image_file = image_file
-
-    if not product.name:
-        return JsonResponse({'error': 'Nome do produto é obrigatório.'}, status=400)
-
-    product.save()
-    return JsonResponse({'message': 'Produto salvo com sucesso.', 'product': _product_payload(product)})
+    return JsonResponse({'message': 'Produto salvo com sucesso.', 'product': _product_payload(saved_product)})
 
 
 @require_POST

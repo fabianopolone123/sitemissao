@@ -1,0 +1,77 @@
+﻿{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Produtos | Missão Andrews</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'shop/styles.css' %}">
+</head>
+<body>
+    <header class="manage-header">
+        <h1>Painel de Produtos</h1>
+        <div class="manage-header-actions">
+            <a class="secondary-button link-button" href="{% url 'home' %}">Voltar para loja</a>
+        </div>
+    </header>
+
+    <main class="manage-page">
+        {% if messages %}
+            <section class="flash-list">
+                {% for message in messages %}
+                    <p class="flash-item">{{ message }}</p>
+                {% endfor %}
+            </section>
+        {% endif %}
+
+        <section class="panel-grid">
+            <div>
+                <p class="panel-subtitle">Produtos atuais</p>
+                <div class="panel-list">
+                    {% for product in products %}
+                        <article class="panel-row">
+                            <img src="{{ product.image_source }}" alt="{{ product.name }}">
+                            <div>
+                                <strong>{{ product.name }}</strong>
+                                <div class="cart-meta">R$ {{ product.price }} | {% if product.active %}Ativo{% else %}Inativo{% endif %}</div>
+                                <div class="panel-row-actions">
+                                    <a class="secondary-button link-button" href="{% url 'manage_products_page' %}?edit={{ product.id }}">Editar</a>
+                                    <form method="post" action="{% url 'manage_products_delete_page' product.id %}" onsubmit="return confirm('Deseja remover este produto?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="danger-btn">Remover</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </article>
+                    {% empty %}
+                        <p>Nenhum produto cadastrado.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div>
+                <p class="panel-subtitle">{% if editing_product %}Editar produto{% else %}Criar produto{% endif %}</p>
+                <form class="checkout-form" method="post" action="{% url 'manage_products_save_page' %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input type="hidden" name="product_id" value="{% if editing_product %}{{ editing_product.id }}{% endif %}">
+                    <input type="text" name="name" placeholder="Nome do produto" value="{% if editing_product %}{{ editing_product.name }}{% endif %}" required>
+                    <input type="text" name="cause" placeholder="Categoria/causa" value="{% if editing_product %}{{ editing_product.cause }}{% endif %}" required>
+                    <input type="text" name="price" placeholder="Preço (ex: 12.00)" value="{% if editing_product %}{{ editing_product.price }}{% endif %}" required>
+                    <textarea name="description" rows="3" placeholder="Descrição">{% if editing_product %}{{ editing_product.description }}{% endif %}</textarea>
+                    <input type="url" name="image_url" placeholder="URL da foto (opcional)" value="{% if editing_product %}{{ editing_product.image_url }}{% endif %}">
+                    <input type="file" name="image_file" accept="image/*">
+                    <label class="checkbox-line">
+                        <input type="checkbox" name="active" {% if not editing_product or editing_product.active %}checked{% endif %}>
+                        Produto ativo
+                    </label>
+                    <button class="add-btn" type="submit">Salvar produto</button>
+                    <a class="secondary-button link-button" href="{% url 'manage_products_page' %}">Novo produto</a>
+                </form>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

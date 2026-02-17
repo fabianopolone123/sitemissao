@@ -8,23 +8,15 @@
     const cartItems = document.getElementById('cart-items');
     const checkoutForm = document.getElementById('checkout-form');
 
-    const authOverlay = document.getElementById('auth-modal-overlay');
+    const loginOverlay = document.getElementById('login-modal-overlay');
     const loginModal = document.getElementById('login-modal');
-    const productPanelModal = document.getElementById('product-panel-modal');
-    const paymentModal = document.getElementById('payment-modal');
-
     const loginForm = document.getElementById('login-form');
-    const productForm = document.getElementById('product-form');
-    const panelProductList = document.getElementById('panel-product-list');
-    const newProductBtn = document.getElementById('new-product-btn');
-
-    const closeLoginModalButton = document.getElementById('close-login-modal');
-    const closeProductPanelButton = document.getElementById('close-product-panel');
-    const closePaymentModalButton = document.getElementById('close-payment-modal');
-
     const openLoginButtons = document.querySelectorAll('#open-login-mobile, #open-login-desktop');
-    const openPanelButtons = document.querySelectorAll('#open-panel-mobile, #open-panel-desktop');
+    const closeLoginModalButton = document.getElementById('close-login-modal');
 
+    const paymentOverlay = document.getElementById('payment-modal-overlay');
+    const paymentModal = document.getElementById('payment-modal');
+    const closePaymentModalButton = document.getElementById('close-payment-modal');
     const copyPixCodeButton = document.getElementById('copy-pix-code');
     const paymentMessage = document.getElementById('payment-message');
     const paymentQr = document.getElementById('payment-qr');
@@ -33,11 +25,7 @@
     const cartUpdateTemplate = document.body.dataset.cartUpdateTemplate;
     const checkoutFinalizeUrl = document.body.dataset.checkoutFinalizeUrl;
     const authLoginUrl = document.body.dataset.authLoginUrl;
-    const manageProductsUrl = document.body.dataset.manageProductsUrl;
-    const manageProductsSaveUrl = document.body.dataset.manageProductsSaveUrl;
-    const manageProductsDeleteTemplate = document.body.dataset.manageProductsDeleteTemplate;
 
-    let isStaffUser = document.body.dataset.userStaff === 'true';
     let currentPixCode = '';
 
     function csrfToken() {
@@ -47,43 +35,6 @@
 
     function showError(message) {
         window.alert(message);
-    }
-
-    function openCart() {
-        sidebar.classList.add('open');
-        cartOverlay.classList.add('open');
-        sidebar.setAttribute('aria-hidden', 'false');
-    }
-
-    function closeCart() {
-        sidebar.classList.remove('open');
-        cartOverlay.classList.remove('open');
-        sidebar.setAttribute('aria-hidden', 'true');
-    }
-
-    function closeAuthModals() {
-        loginModal.hidden = true;
-        productPanelModal.hidden = true;
-        paymentModal.hidden = true;
-        authOverlay.hidden = true;
-    }
-
-    function openModal(modal) {
-        closeCart();
-        authOverlay.hidden = false;
-        loginModal.hidden = true;
-        productPanelModal.hidden = true;
-        paymentModal.hidden = true;
-        modal.hidden = false;
-    }
-
-    function syncStaffUI() {
-        openPanelButtons.forEach((button) => {
-            button.hidden = !isStaffUser;
-        });
-        openLoginButtons.forEach((button) => {
-            button.textContent = isStaffUser ? 'Administrador' : 'Login';
-        });
     }
 
     async function parseResponse(response) {
@@ -113,25 +64,38 @@
         return parseResponse(response);
     }
 
-    async function postMultipart(url, formData) {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': csrfToken(),
-            },
-            body: formData,
-        });
-        return parseResponse(response);
+    function openCart() {
+        sidebar.classList.add('open');
+        cartOverlay.classList.add('open');
+        sidebar.setAttribute('aria-hidden', 'false');
     }
 
-    async function getJson(url) {
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-        });
-        return parseResponse(response);
+    function closeCart() {
+        sidebar.classList.remove('open');
+        cartOverlay.classList.remove('open');
+        sidebar.setAttribute('aria-hidden', 'true');
+    }
+
+    function openLoginModal() {
+        closeCart();
+        loginOverlay.hidden = false;
+        loginModal.hidden = false;
+    }
+
+    function closeLoginModal() {
+        loginOverlay.hidden = true;
+        loginModal.hidden = true;
+    }
+
+    function openPaymentModal() {
+        closeCart();
+        paymentOverlay.hidden = false;
+        paymentModal.hidden = false;
+    }
+
+    function closePaymentModal() {
+        paymentOverlay.hidden = true;
+        paymentModal.hidden = true;
     }
 
     function renderCart(cart) {
@@ -235,7 +199,24 @@
                 paymentMessage.textContent = `${payload.message} Pedido #${payload.order_id}.`;
                 paymentQr.src = `data:image/png;base64,${payload.qr_code_base64}`;
                 currentPixCode = payload.pix_code;
-                openModal(paymentModal);
+                openPaymentModal();
+            } catch (error) {
+                showError(error.message);
+            }
+        });
+    }
+
+    function bindLoginForm() {
+        loginForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const formData = new FormData(loginForm);
+
+            try {
+                await post(authLoginUrl, {
+                    username: formData.get('username') || '',
+                    password: formData.get('password') || '',
+                });
+                window.location.reload();
             } catch (error) {
                 showError(error.message);
             }
@@ -256,153 +237,23 @@
         }
     }
 
-    function fillProductForm(product) {
-        productForm.querySelector('input[name=product_id]').value = product.id;
-        productForm.querySelector('input[name=name]').value = product.name;
-        productForm.querySelector('input[name=cause]').value = product.cause;
-        productForm.querySelector('input[name=price]').value = product.price;
-        productForm.querySelector('textarea[name=description]').value = product.description || '';
-        productForm.querySelector('input[name=image_url]').value = product.image_url || '';
-        productForm.querySelector('input[name=active]').checked = !!product.active;
-    }
-
-    function resetProductForm() {
-        productForm.reset();
-        productForm.querySelector('input[name=product_id]').value = '';
-        productForm.querySelector('input[name=active]').checked = true;
-    }
-
-    function renderManageProducts(products) {
-        if (!products.length) {
-            panelProductList.innerHTML = '<p>Nenhum produto cadastrado.</p>';
-            return;
-        }
-
-        panelProductList.innerHTML = products
-            .map(
-                (product) => `
-                    <article class="panel-row" data-id="${product.id}">
-                        <img src="${product.image_source}" alt="${product.name}">
-                        <div>
-                            <strong>${product.name}</strong>
-                            <div class="cart-meta">R$ ${product.price} | ${product.active ? 'Ativo' : 'Inativo'}</div>
-                            <div class="panel-row-actions">
-                                <button type="button" data-edit="${product.id}">Editar</button>
-                                <button type="button" data-delete="${product.id}" class="danger-btn">Remover</button>
-                            </div>
-                        </div>
-                    </article>
-                `
-            )
-            .join('');
-
-        panelProductList.querySelectorAll('[data-edit]').forEach((button) => {
-            button.addEventListener('click', () => {
-                const id = Number(button.dataset.edit);
-                const product = products.find((item) => item.id === id);
-                if (product) {
-                    fillProductForm(product);
-                }
-            });
-        });
-
-        panelProductList.querySelectorAll('[data-delete]').forEach((button) => {
-            button.addEventListener('click', async () => {
-                const id = Number(button.dataset.delete);
-                if (!window.confirm('Deseja remover este produto?')) {
-                    return;
-                }
-
-                try {
-                    const deleteUrl = manageProductsDeleteTemplate.replace('/0/', `/${id}/`);
-                    await post(deleteUrl, {});
-                    window.location.reload();
-                } catch (error) {
-                    showError(error.message);
-                }
-            });
-        });
-    }
-
-    async function loadManageProductsAndOpen() {
-        if (!isStaffUser) {
-            showError('Faça login com usuário administrador para abrir o painel.');
-            return;
-        }
-
-        try {
-            const payload = await getJson(manageProductsUrl);
-            renderManageProducts(payload.products || []);
-            openModal(productPanelModal);
-        } catch (error) {
-            showError(error.message);
-        }
-    }
-
-    function bindLoginForm() {
-        loginForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            const formData = new FormData(loginForm);
-
-            try {
-                const payload = await post(authLoginUrl, {
-                    username: formData.get('username') || '',
-                    password: formData.get('password') || '',
-                });
-                isStaffUser = !!(payload.user && payload.user.is_staff);
-                syncStaffUI();
-                closeAuthModals();
-                if (isStaffUser) {
-                    await loadManageProductsAndOpen();
-                } else {
-                    window.alert('Login realizado, mas seu usuário não possui permissão de administrador.');
-                }
-            } catch (error) {
-                showError(error.message);
-            }
-        });
-    }
-
-    function bindProductForm() {
-        productForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            const formData = new FormData(productForm);
-
-            try {
-                await postMultipart(manageProductsSaveUrl, formData);
-                window.location.reload();
-            } catch (error) {
-                showError(error.message);
-            }
-        });
-
-        newProductBtn.addEventListener('click', resetProductForm);
-    }
-
     openCartButtons.forEach((button) => button.addEventListener('click', openCart));
     closeCartButton.addEventListener('click', closeCart);
     cartOverlay.addEventListener('click', closeCart);
 
     openLoginButtons.forEach((button) => {
-        button.addEventListener('click', () => openModal(loginModal));
+        button.addEventListener('click', openLoginModal);
     });
+    closeLoginModalButton.addEventListener('click', closeLoginModal);
+    loginOverlay.addEventListener('click', closeLoginModal);
 
-    openPanelButtons.forEach((button) => {
-        button.addEventListener('click', loadManageProductsAndOpen);
-    });
-
-    closeLoginModalButton.addEventListener('click', closeAuthModals);
-    closeProductPanelButton.addEventListener('click', closeAuthModals);
-    closePaymentModalButton.addEventListener('click', closeAuthModals);
-    authOverlay.addEventListener('click', closeAuthModals);
+    closePaymentModalButton.addEventListener('click', closePaymentModal);
+    paymentOverlay.addEventListener('click', closePaymentModal);
     copyPixCodeButton.addEventListener('click', copyPixCode);
 
     bindCardQuantityControls();
     bindAddToCartForms();
-    bindCartActions();
     bindCheckoutForm();
     bindLoginForm();
-    bindProductForm();
-    syncStaffUI();
     renderCart(initialCart);
 })();

@@ -14,10 +14,6 @@
     data-cart-update-template="{% url 'cart_update' 0 %}"
     data-checkout-finalize-url="{% url 'checkout_finalize' %}"
     data-auth-login-url="{% url 'auth_login' %}"
-    data-auth-logout-url="{% url 'auth_logout' %}"
-    data-manage-products-url="{% url 'product_manage_list' %}"
-    data-manage-products-save-url="{% url 'product_manage_save' %}"
-    data-manage-products-delete-template="{% url 'product_manage_delete' 0 %}"
     data-user-staff="{{ request.user.is_staff|yesno:'true,false' }}"
 >
     <header class="hero">
@@ -27,7 +23,9 @@
             <p class="subtitle">Cada item vendido ajuda a levantar recursos para a Missão Andrews, permitindo alcançar mais pessoas, oferecer apoio com remédios, cestas básicas e outras necessidades, além de levar o amor de Jesus a mais comunidades.</p>
             <div class="mobile-actions">
                 <button id="open-login-mobile" class="secondary-button" type="button">Login</button>
-                <button id="open-panel-mobile" class="secondary-button" type="button" hidden>Painel</button>
+                {% if request.user.is_staff %}
+                    <a id="open-panel-mobile" class="secondary-button link-button" href="{% url 'manage_products_page' %}">Painel</a>
+                {% endif %}
                 <button id="open-cart-mobile" class="cart-button" type="button" data-open-cart>
                     Carrinho <span class="cart-count-badge">{{ cart.count }}</span>
                 </button>
@@ -36,7 +34,9 @@
 
         <div class="header-actions">
             <button id="open-login-desktop" class="secondary-button" type="button">Login</button>
-            <button id="open-panel-desktop" class="secondary-button" type="button" hidden>Painel produtos</button>
+            {% if request.user.is_staff %}
+                <a id="open-panel-desktop" class="secondary-button link-button" href="{% url 'manage_products_page' %}">Painel produtos</a>
+            {% endif %}
             <button id="open-cart-desktop" class="cart-button" type="button" data-open-cart>
                 Carrinho <span class="cart-count-badge">{{ cart.count }}</span>
             </button>
@@ -91,7 +91,8 @@
         </div>
     </aside>
 
-    <div id="auth-modal-overlay" class="payment-modal-overlay" hidden></div>
+    <div id="login-modal-overlay" class="payment-modal-overlay" hidden></div>
+    <div id="payment-modal-overlay" class="payment-modal-overlay" hidden></div>
 
     <section id="login-modal" class="payment-modal" hidden>
         <button id="close-login-modal" class="payment-close-btn" type="button">X</button>
@@ -102,36 +103,6 @@
             <input type="password" name="password" placeholder="Senha" required>
             <button class="add-btn" type="submit">Entrar</button>
         </form>
-    </section>
-
-    <section id="product-panel-modal" class="panel-modal" hidden>
-        <button id="close-product-panel" class="payment-close-btn" type="button">X</button>
-        <h3>Painel de Produtos</h3>
-        <div class="panel-grid">
-            <div>
-                <p class="panel-subtitle">Produtos atuais</p>
-                <div id="panel-product-list" class="panel-list"></div>
-            </div>
-            <div>
-                <p class="panel-subtitle">Criar / Editar produto</p>
-                <form id="product-form" class="checkout-form" enctype="multipart/form-data">
-                    {% csrf_token %}
-                    <input type="hidden" name="product_id" value="">
-                    <input type="text" name="name" placeholder="Nome do produto" required>
-                    <input type="text" name="cause" placeholder="Categoria/causa" required>
-                    <input type="text" name="price" placeholder="Preço (ex: 12.00)" required>
-                    <textarea name="description" rows="3" placeholder="Descrição"></textarea>
-                    <input type="url" name="image_url" placeholder="URL da foto (opcional)">
-                    <input type="file" name="image_file" accept="image/*">
-                    <label class="checkbox-line">
-                        <input type="checkbox" name="active" checked>
-                        Produto ativo
-                    </label>
-                    <button class="add-btn" type="submit">Salvar produto</button>
-                    <button id="new-product-btn" class="secondary-button" type="button">Novo produto</button>
-                </form>
-            </div>
-        </div>
     </section>
 
     <section id="payment-modal" class="payment-modal" hidden>

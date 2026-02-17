@@ -126,6 +126,13 @@ h1 {
     color: #2e2b27;
 }
 
+.link-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
 .cart-count-badge {
     background: var(--accent);
     color: #1d1b16;
@@ -452,9 +459,45 @@ h1 {
     padding: 4px 8px;
 }
 
+.manage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 18px;
+}
+
+.manage-header h1 {
+    margin: 0;
+    font-size: clamp(1.3rem, 3vw, 2rem);
+}
+
+.manage-page {
+    padding: 0 18px 24px;
+}
+
+.flash-list {
+    margin-bottom: 12px;
+}
+
+.flash-item {
+    background: #eaf4ec;
+    border: 1px solid #cadecd;
+    color: #1f4e38;
+    border-radius: 10px;
+    padding: 10px;
+    margin: 0 0 8px;
+}
+
 @media (max-width: 900px) {
     .panel-grid {
         grid-template-columns: 1fr;
+    }
+
+    .header-actions {
+        flex-wrap: wrap;
+        max-width: 280px;
+        justify-content: flex-end;
     }
 }
 
@@ -475,7 +518,22 @@ h1 {
         display: flex;
     }
 
+    .mobile-actions .secondary-button,
+    .mobile-actions .cart-button {
+        width: 100%;
+    }
+
     .products-grid {
         padding: 10px 18px 30px;
+    }
+
+    .manage-header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 14px;
+    }
+
+    .manage-page {
+        padding: 0 12px 18px;
     }
 }
