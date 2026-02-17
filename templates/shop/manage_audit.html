@@ -19,11 +19,30 @@
     </header>
 
     <main class="manage-page">
-        <section class="section-card">
-            <form method="get" class="checkout-form" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); align-items: end;">
+        <section class="section-card report-summary-grid">
+            <article class="report-card">
+                <div class="cart-meta">Logs exibidos</div>
+                <strong>{{ total_logs }}</strong>
+            </article>
+            <article class="report-card">
+                <div class="cart-meta">Erros (>=400)</div>
+                <strong>{{ error_logs }}</strong>
+            </article>
+            <article class="report-card">
+                <div class="cart-meta">Ações de escrita</div>
+                <strong>{{ write_logs }}</strong>
+            </article>
+            <article class="report-card">
+                <div class="cart-meta">Usuários únicos</div>
+                <strong>{{ unique_users }}</strong>
+            </article>
+        </section>
+
+        <section class="section-card" style="margin-top: 12px;">
+            <form method="get" class="checkout-form" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); align-items: end;">
                 <input type="text" name="q" value="{{ q }}" placeholder="Buscar por rota (path)">
                 <select name="method">
-                    <option value="">Método (todos)</option>
+                    <option value="">Metodo (todos)</option>
                     <option value="GET" {% if selected_method == 'GET' %}selected{% endif %}>GET</option>
                     <option value="POST" {% if selected_method == 'POST' %}selected{% endif %}>POST</option>
                     <option value="PUT" {% if selected_method == 'PUT' %}selected{% endif %}>PUT</option>
@@ -40,34 +59,34 @@
         </section>
 
         <section class="section-card" style="margin-top: 12px;">
-            <p class="panel-subtitle">Últimos logs (máx 500)</p>
+            <p class="panel-subtitle">Linha do tempo de auditoria (max 500)</p>
             <div class="panel-list" style="max-height: 70vh;">
                 {% for log in logs %}
-                    <article class="panel-row {% if log.is_error %}panel-row-inactive{% else %}panel-row-active{% endif %}" style="grid-template-columns: 1fr;">
+                    <article class="panel-row panel-row-full {% if log.is_error %}panel-row-inactive{% else %}panel-row-active{% endif %}">
                         <div>
-                            <strong>{{ log.method }} {{ log.path }}</strong>
-                            <div class="cart-meta">
-                                {{ log.created_at|date:"d/m/Y H:i:s" }} |
-                                status {{ log.status_code }} |
-                                {{ log.response_ms }}ms |
-                                IP {{ log.ip_address|default:"-" }}
+                            <div class="order-head" style="margin-bottom: 4px;">
+                                <strong>{{ log.action_label }}</strong>
+                                <span class="status-chip {% if log.is_error %}status-chip-inactive{% else %}status-chip-active{% endif %}">
+                                    {{ log.status_text }} ({{ log.status_code }})
+                                </span>
                             </div>
                             <div class="cart-meta">
-                                usuário: {% if log.user %}{{ log.user.username }}{% else %}anônimo{% endif %}
+                                {{ log.created_at|date:"d/m/Y H:i:s" }} | {{ log.method }} | {{ log.response_ms }}ms
                             </div>
+                            <div class="cart-meta">
+                                usuario: {% if log.user %}{{ log.user.username }}{% else %}anonimo{% endif %} | IP: {{ log.ip_address|default:"-" }}
+                            </div>
+                            <div class="cart-meta">rota: {{ log.path }}</div>
                             {% if log.query_params %}
                                 <div class="cart-meta">query: {{ log.query_params }}</div>
                             {% endif %}
-                            {% if log.payload %}
-                                <div class="cart-meta">payload: {{ log.payload }}</div>
-                            {% endif %}
-                            {% if log.user_agent %}
-                                <div class="cart-meta">user-agent: {{ log.user_agent }}</div>
+                            {% if log.payload_short %}
+                                <div class="cart-meta">dados: {{ log.payload_short }}</div>
                             {% endif %}
                         </div>
                     </article>
                 {% empty %}
-                    <p>Nenhum log de auditoria encontrado.</p>
+                    <p>Nenhum log encontrado para os filtros aplicados.</p>
                 {% endfor %}
             </div>
         </section>

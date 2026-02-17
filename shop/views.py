@@ -197,6 +197,64 @@ def _order_delete_password():
     return os.getenv('ORDER_DELETE_PASSWORD', '1234').strip()
 
 
+def _audit_action_label(log):
+    path = (log.path or '').lower()
+    method = (log.method or '').upper()
+
+    if '/auth/login' in path:
+        return 'Login'
+    if '/auth/logout' in path:
+        return 'Logout'
+    if '/checkout/finalize' in path:
+        return 'Checkout loja'
+    if '/checkout/status' in path:
+        return 'Consulta status pagamento'
+    if '/payments/webhook' in path:
+        return 'Webhook pagamento'
+    if '/manage/sales/create' in path:
+        return 'Venda balcao criada'
+    if '/manage/sales/mark-paid' in path:
+        return 'Venda balcao marcada paga'
+    if '/manage/products/page/save' in path:
+        return 'Produto salvo'
+    if '/manage/products/page/delete' in path:
+        return 'Produto excluido'
+    if '/manage/orders/page/delivery' in path:
+        return 'Atualizacao entrega'
+    if '/manage/orders/page/delete' in path:
+        return 'Pedido excluido'
+    if '/manage/costs/page/create' in path:
+        return 'Custo cadastrado'
+    if '/manage/costs/page/delete' in path:
+        return 'Custo removido'
+    if '/manage/whatsapp/page/create' in path:
+        return 'Contato WhatsApp cadastrado'
+    if '/manage/whatsapp/page/delete' in path:
+        return 'Contato WhatsApp removido'
+    if '/manage/users/page/create' in path:
+        return 'Usuario criado'
+    if '/manage/audit/page' in path:
+        return 'Consulta auditoria'
+    if '/manage/reports/page' in path:
+        return 'Consulta relatorios'
+    if '/manage/products/page' in path:
+        return 'Consulta painel produtos'
+    if '/manage/sales/page' in path:
+        return 'Consulta painel vendas'
+
+    return f'{method} {path}'
+
+
+def _audit_status_text(status_code):
+    if status_code >= 500:
+        return 'Erro servidor'
+    if status_code >= 400:
+        return 'Erro cliente'
+    if status_code >= 300:
+        return 'Redirecionamento'
+    return 'OK'
+
+
 def _save_product_from_request(request, product=None):
     if product is None:
         product = Product()
@@ -747,7 +805,16 @@ def manage_audit_page(request):
     if q:
         logs = logs.filter(path__icontains=q)
 
-    logs = logs[:500]
+    logs = list(logs[:500])
+    for log in logs:
+        log.action_label = _audit_action_label(log)
+        log.status_text = _audit_status_text(log.status_code)
+        log.payload_short = (log.payload or '')[:240]
+
+    total_logs = len(logs)
+    error_logs = sum(1 for log in logs if log.status_code >= 400)
+    write_logs = sum(1 for log in logs if log.method in {'POST', 'PUT', 'PATCH', 'DELETE'})
+    unique_users = len({log.user_id for log in logs if log.user_id})
 
     return render(
         request,
@@ -757,6 +824,10 @@ def manage_audit_page(request):
             'selected_method': method,
             'selected_status_group': status_group,
             'q': q,
+            'total_logs': total_logs,
+            'error_logs': error_logs,
+            'write_logs': write_logs,
+            'unique_users': unique_users,
         },
     )
 
