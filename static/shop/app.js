@@ -1,44 +1,44 @@
 ﻿(function () {
     const sidebar = document.getElementById('cart-sidebar');
-    const overlay = document.getElementById('cart-overlay');
-    const openCartButtons = document.querySelectorAll('#open-cart-mobile, #open-cart-desktop');
+    const cartOverlay = document.getElementById('cart-overlay');
+    const openCartButtons = document.querySelectorAll('[data-open-cart]');
     const closeCartButton = document.getElementById('close-cart');
     const cartCountBadges = document.querySelectorAll('.cart-count-badge');
     const cartTotal = document.getElementById('cart-total');
     const cartItems = document.getElementById('cart-items');
     const checkoutForm = document.getElementById('checkout-form');
+
+    const authOverlay = document.getElementById('auth-modal-overlay');
+    const loginModal = document.getElementById('login-modal');
+    const productPanelModal = document.getElementById('product-panel-modal');
     const paymentModal = document.getElementById('payment-modal');
-    const paymentModalOverlay = document.getElementById('payment-modal-overlay');
+
+    const loginForm = document.getElementById('login-form');
+    const productForm = document.getElementById('product-form');
+    const panelProductList = document.getElementById('panel-product-list');
+    const newProductBtn = document.getElementById('new-product-btn');
+
+    const closeLoginModalButton = document.getElementById('close-login-modal');
+    const closeProductPanelButton = document.getElementById('close-product-panel');
     const closePaymentModalButton = document.getElementById('close-payment-modal');
+
+    const openLoginButtons = document.querySelectorAll('#open-login-mobile, #open-login-desktop');
+    const openPanelButtons = document.querySelectorAll('#open-panel-mobile, #open-panel-desktop');
+
     const copyPixCodeButton = document.getElementById('copy-pix-code');
     const paymentMessage = document.getElementById('payment-message');
     const paymentQr = document.getElementById('payment-qr');
+
     const initialCart = JSON.parse(document.getElementById('initial-cart').textContent);
     const cartUpdateTemplate = document.body.dataset.cartUpdateTemplate;
     const checkoutFinalizeUrl = document.body.dataset.checkoutFinalizeUrl;
+    const authLoginUrl = document.body.dataset.authLoginUrl;
+    const manageProductsUrl = document.body.dataset.manageProductsUrl;
+    const manageProductsSaveUrl = document.body.dataset.manageProductsSaveUrl;
+    const manageProductsDeleteTemplate = document.body.dataset.manageProductsDeleteTemplate;
+
+    let isStaffUser = document.body.dataset.userStaff === 'true';
     let currentPixCode = '';
-
-    function openCart() {
-        sidebar.classList.add('open');
-        overlay.classList.add('open');
-        sidebar.setAttribute('aria-hidden', 'false');
-    }
-
-    function closeCart() {
-        sidebar.classList.remove('open');
-        overlay.classList.remove('open');
-        sidebar.setAttribute('aria-hidden', 'true');
-    }
-
-    function openPaymentModal() {
-        paymentModal.hidden = false;
-        paymentModalOverlay.hidden = false;
-    }
-
-    function closePaymentModal() {
-        paymentModal.hidden = true;
-        paymentModalOverlay.hidden = true;
-    }
 
     function csrfToken() {
         const input = document.querySelector('input[name=csrfmiddlewaretoken]');
@@ -49,24 +49,89 @@
         window.alert(message);
     }
 
-    function resetPaymentResult() {
-        paymentMessage.textContent = '';
-        paymentQr.removeAttribute('src');
-        currentPixCode = '';
-        closePaymentModal();
+    function openCart() {
+        sidebar.classList.add('open');
+        cartOverlay.classList.add('open');
+        sidebar.setAttribute('aria-hidden', 'false');
     }
 
-    function bindCardQuantityControls() {
-        document.querySelectorAll('.add-form').forEach((form) => {
-            const input = form.querySelector('.qty-input');
-            form.querySelectorAll('.qty-btn').forEach((button) => {
-                button.addEventListener('click', () => {
-                    const current = parseInt(input.value || '1', 10);
-                    const next = button.dataset.action === 'plus' ? current + 1 : current - 1;
-                    input.value = String(Math.max(1, next));
-                });
-            });
+    function closeCart() {
+        sidebar.classList.remove('open');
+        cartOverlay.classList.remove('open');
+        sidebar.setAttribute('aria-hidden', 'true');
+    }
+
+    function closeAuthModals() {
+        loginModal.hidden = true;
+        productPanelModal.hidden = true;
+        paymentModal.hidden = true;
+        authOverlay.hidden = true;
+    }
+
+    function openModal(modal) {
+        closeCart();
+        authOverlay.hidden = false;
+        loginModal.hidden = true;
+        productPanelModal.hidden = true;
+        paymentModal.hidden = true;
+        modal.hidden = false;
+    }
+
+    function syncStaffUI() {
+        openPanelButtons.forEach((button) => {
+            button.hidden = !isStaffUser;
         });
+        openLoginButtons.forEach((button) => {
+            button.textContent = isStaffUser ? 'Administrador' : 'Login';
+        });
+    }
+
+    async function parseResponse(response) {
+        let payload = {};
+        try {
+            payload = await response.json();
+        } catch (error) {
+            payload = {};
+        }
+
+        if (!response.ok) {
+            throw new Error(payload.error || 'Falha ao processar a solicitação.');
+        }
+        return payload;
+    }
+
+    async function post(url, body) {
+        const data = new URLSearchParams(body);
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken(),
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: data,
+        });
+        return parseResponse(response);
+    }
+
+    async function postMultipart(url, formData) {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken(),
+            },
+            body: formData,
+        });
+        return parseResponse(response);
+    }
+
+    async function getJson(url) {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        });
+        return parseResponse(response);
     }
 
     function renderCart(cart) {
@@ -103,28 +168,17 @@
         bindCartActions();
     }
 
-    async function post(url, body) {
-        const data = new URLSearchParams(body);
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': csrfToken(),
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: data,
+    function bindCardQuantityControls() {
+        document.querySelectorAll('.add-form').forEach((form) => {
+            const input = form.querySelector('.qty-input');
+            form.querySelectorAll('.qty-btn').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const current = parseInt(input.value || '1', 10);
+                    const next = button.dataset.action === 'plus' ? current + 1 : current - 1;
+                    input.value = String(Math.max(1, next));
+                });
+            });
         });
-
-        let payload = {};
-        try {
-            payload = await response.json();
-        } catch (error) {
-            payload = {};
-        }
-
-        if (!response.ok) {
-            throw new Error(payload.error || 'Falha ao processar a solicitação.');
-        }
-        return payload;
     }
 
     function bindAddToCartForms() {
@@ -135,7 +189,6 @@
                     const quantity = form.querySelector('.qty-input').value;
                     const cart = await post(form.dataset.url, { quantity });
                     renderCart(cart);
-                    resetPaymentResult();
                     openCart();
                 } catch (error) {
                     showError(error.message);
@@ -157,7 +210,6 @@
                             quantity: action === 'remove' ? '0' : '1',
                         });
                         renderCart(cart);
-                        resetPaymentResult();
                     } catch (error) {
                         showError(error.message);
                     }
@@ -170,21 +222,20 @@
         checkoutForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             const formData = new FormData(checkoutForm);
-            const body = {
-                first_name: formData.get('first_name') || '',
-                last_name: formData.get('last_name') || '',
-                whatsapp: formData.get('whatsapp') || '',
-                payment_method: formData.get('payment_method') || '',
-            };
 
             try {
-                const payload = await post(checkoutFinalizeUrl, body);
+                const payload = await post(checkoutFinalizeUrl, {
+                    first_name: formData.get('first_name') || '',
+                    last_name: formData.get('last_name') || '',
+                    whatsapp: formData.get('whatsapp') || '',
+                    payment_method: formData.get('payment_method') || '',
+                });
+
                 renderCart(payload.cart);
-                closeCart();
                 paymentMessage.textContent = `${payload.message} Pedido #${payload.order_id}.`;
                 paymentQr.src = `data:image/png;base64,${payload.qr_code_base64}`;
                 currentPixCode = payload.pix_code;
-                openPaymentModal();
+                openModal(paymentModal);
             } catch (error) {
                 showError(error.message);
             }
@@ -205,17 +256,153 @@
         }
     }
 
-    openCartButtons.forEach((button) => {
-        button.addEventListener('click', openCart);
-    });
+    function fillProductForm(product) {
+        productForm.querySelector('input[name=product_id]').value = product.id;
+        productForm.querySelector('input[name=name]').value = product.name;
+        productForm.querySelector('input[name=cause]').value = product.cause;
+        productForm.querySelector('input[name=price]').value = product.price;
+        productForm.querySelector('textarea[name=description]').value = product.description || '';
+        productForm.querySelector('input[name=image_url]').value = product.image_url || '';
+        productForm.querySelector('input[name=active]').checked = !!product.active;
+    }
+
+    function resetProductForm() {
+        productForm.reset();
+        productForm.querySelector('input[name=product_id]').value = '';
+        productForm.querySelector('input[name=active]').checked = true;
+    }
+
+    function renderManageProducts(products) {
+        if (!products.length) {
+            panelProductList.innerHTML = '<p>Nenhum produto cadastrado.</p>';
+            return;
+        }
+
+        panelProductList.innerHTML = products
+            .map(
+                (product) => `
+                    <article class="panel-row" data-id="${product.id}">
+                        <img src="${product.image_source}" alt="${product.name}">
+                        <div>
+                            <strong>${product.name}</strong>
+                            <div class="cart-meta">R$ ${product.price} | ${product.active ? 'Ativo' : 'Inativo'}</div>
+                            <div class="panel-row-actions">
+                                <button type="button" data-edit="${product.id}">Editar</button>
+                                <button type="button" data-delete="${product.id}" class="danger-btn">Remover</button>
+                            </div>
+                        </div>
+                    </article>
+                `
+            )
+            .join('');
+
+        panelProductList.querySelectorAll('[data-edit]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const id = Number(button.dataset.edit);
+                const product = products.find((item) => item.id === id);
+                if (product) {
+                    fillProductForm(product);
+                }
+            });
+        });
+
+        panelProductList.querySelectorAll('[data-delete]').forEach((button) => {
+            button.addEventListener('click', async () => {
+                const id = Number(button.dataset.delete);
+                if (!window.confirm('Deseja remover este produto?')) {
+                    return;
+                }
+
+                try {
+                    const deleteUrl = manageProductsDeleteTemplate.replace('/0/', `/${id}/`);
+                    await post(deleteUrl, {});
+                    window.location.reload();
+                } catch (error) {
+                    showError(error.message);
+                }
+            });
+        });
+    }
+
+    async function loadManageProductsAndOpen() {
+        if (!isStaffUser) {
+            showError('Faça login com usuário administrador para abrir o painel.');
+            return;
+        }
+
+        try {
+            const payload = await getJson(manageProductsUrl);
+            renderManageProducts(payload.products || []);
+            openModal(productPanelModal);
+        } catch (error) {
+            showError(error.message);
+        }
+    }
+
+    function bindLoginForm() {
+        loginForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const formData = new FormData(loginForm);
+
+            try {
+                const payload = await post(authLoginUrl, {
+                    username: formData.get('username') || '',
+                    password: formData.get('password') || '',
+                });
+                isStaffUser = !!(payload.user && payload.user.is_staff);
+                syncStaffUI();
+                closeAuthModals();
+                if (isStaffUser) {
+                    await loadManageProductsAndOpen();
+                } else {
+                    window.alert('Login realizado, mas seu usuário não possui permissão de administrador.');
+                }
+            } catch (error) {
+                showError(error.message);
+            }
+        });
+    }
+
+    function bindProductForm() {
+        productForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const formData = new FormData(productForm);
+
+            try {
+                await postMultipart(manageProductsSaveUrl, formData);
+                window.location.reload();
+            } catch (error) {
+                showError(error.message);
+            }
+        });
+
+        newProductBtn.addEventListener('click', resetProductForm);
+    }
+
+    openCartButtons.forEach((button) => button.addEventListener('click', openCart));
     closeCartButton.addEventListener('click', closeCart);
-    overlay.addEventListener('click', closeCart);
-    closePaymentModalButton.addEventListener('click', closePaymentModal);
-    paymentModalOverlay.addEventListener('click', closePaymentModal);
+    cartOverlay.addEventListener('click', closeCart);
+
+    openLoginButtons.forEach((button) => {
+        button.addEventListener('click', () => openModal(loginModal));
+    });
+
+    openPanelButtons.forEach((button) => {
+        button.addEventListener('click', loadManageProductsAndOpen);
+    });
+
+    closeLoginModalButton.addEventListener('click', closeAuthModals);
+    closeProductPanelButton.addEventListener('click', closeAuthModals);
+    closePaymentModalButton.addEventListener('click', closeAuthModals);
+    authOverlay.addEventListener('click', closeAuthModals);
     copyPixCodeButton.addEventListener('click', copyPixCode);
 
     bindCardQuantityControls();
     bindAddToCartForms();
+    bindCartActions();
     bindCheckoutForm();
+    bindLoginForm();
+    bindProductForm();
+    syncStaffUI();
     renderCart(initialCart);
 })();

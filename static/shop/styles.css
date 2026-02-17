@@ -34,7 +34,7 @@ body {
     gap: 20px;
     position: relative;
     overflow: hidden;
-    min-height: 440px;
+    min-height: 420px;
     border-radius: 22px;
     margin: 16px 18px 0;
 }
@@ -86,14 +86,44 @@ h1 {
     color: var(--muted);
 }
 
-.cart-button {
+.header-actions {
+    position: absolute;
+    right: 24px;
+    top: 24px;
+    z-index: 4;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.mobile-actions {
+    display: none;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+
+.cart-button,
+.secondary-button,
+.add-btn {
     border: none;
-    background: var(--primary);
-    color: #fff;
-    padding: 12px 18px;
     border-radius: 999px;
     font-weight: 700;
     cursor: pointer;
+    height: 40px;
+    padding: 0 16px;
+}
+
+.cart-button,
+.add-btn {
+    background: var(--primary);
+    color: #fff;
+}
+
+.secondary-button {
+    border: 1px solid #d3cec5;
+    background: #f6f2eb;
+    color: #2e2b27;
 }
 
 .cart-count-badge {
@@ -102,18 +132,6 @@ h1 {
     border-radius: 999px;
     padding: 2px 8px;
     margin-left: 6px;
-}
-
-.desktop-cart-button {
-    position: absolute;
-    right: 24px;
-    top: 24px;
-    z-index: 4;
-}
-
-.mobile-cart-button {
-    display: none;
-    margin-top: 10px;
 }
 
 .products-grid {
@@ -173,8 +191,7 @@ h1 {
 }
 
 .qty-btn,
-.qty-input,
-.add-btn {
+.qty-input {
     border-radius: 12px;
     border: 1px solid #d7d1c8;
     height: 40px;
@@ -190,15 +207,6 @@ h1 {
     width: 100%;
     text-align: center;
     font-weight: 700;
-}
-
-.add-btn {
-    width: 100%;
-    border: none;
-    background: var(--primary);
-    color: #fff;
-    font-weight: 700;
-    cursor: pointer;
 }
 
 .overlay {
@@ -305,7 +313,8 @@ h1 {
     padding: 4px 8px;
 }
 
-.cart-actions .remove {
+.cart-actions .remove,
+.danger-btn {
     border-color: #efc5c5;
     color: var(--danger);
 }
@@ -324,29 +333,44 @@ h1 {
     border-radius: 10px;
     padding: 10px;
     font: inherit;
+    background: #fff;
+}
+
+.checkbox-line {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 0.92rem;
+    color: var(--muted);
 }
 
 .payment-modal-overlay {
     position: fixed;
     inset: 0;
     background: rgba(16, 22, 19, 0.45);
-    z-index: 60;
+    z-index: 120;
 }
 
-.payment-modal {
+.payment-modal,
+.panel-modal {
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: min(92vw, 420px);
+    width: min(92vw, 440px);
     background: #fff;
     border-radius: 16px;
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
     padding: 18px;
-    z-index: 70;
+    z-index: 130;
 }
 
-.payment-modal h3 {
+.panel-modal {
+    width: min(96vw, 980px);
+}
+
+.payment-modal h3,
+.panel-modal h3 {
     margin: 0 0 8px;
     text-align: center;
 }
@@ -375,6 +399,65 @@ h1 {
     top: 10px;
 }
 
+.panel-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: 1fr 1fr;
+}
+
+.panel-subtitle {
+    margin: 0 0 8px;
+    font-weight: 700;
+}
+
+.panel-list {
+    border: 1px solid #ebe6de;
+    border-radius: 12px;
+    padding: 8px;
+    max-height: 420px;
+    overflow: auto;
+    background: #fcfaf6;
+}
+
+.panel-row {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 10px;
+    padding: 8px;
+    border-bottom: 1px solid #ece8df;
+}
+
+.panel-row:last-child {
+    border-bottom: none;
+}
+
+.panel-row img {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.panel-row-actions {
+    margin-top: 6px;
+    display: flex;
+    gap: 6px;
+}
+
+.panel-row-actions button {
+    border: 1px solid #d8d2c8;
+    background: #fff;
+    border-radius: 8px;
+    cursor: pointer;
+    padding: 4px 8px;
+}
+
+@media (max-width: 900px) {
+    .panel-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 640px) {
     .hero {
         flex-direction: column;
@@ -382,16 +465,17 @@ h1 {
         min-height: 0;
         overflow: hidden;
         margin: 10px 12px 0;
-    }`n    .desktop-cart-button {
+    }
+
+    .header-actions {
         display: none;
     }
 
-    .mobile-cart-button {
-        display: inline-block;
+    .mobile-actions {
+        display: flex;
     }
 
     .products-grid {
         padding: 10px 18px 30px;
     }
 }
-

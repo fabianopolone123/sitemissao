@@ -1,11 +1,12 @@
-import base64
+﻿import base64
 import io
 import os
 import unicodedata
 import uuid
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 import qrcode
+from django.contrib.auth import authenticate, login, logout
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_GET, require_POST
@@ -19,6 +20,19 @@ def _get_cart(session):
         cart = {}
         session['cart'] = cart
     return cart
+
+
+def _product_payload(product):
+    return {
+        'id': product.id,
+        'name': product.name,
+        'description': product.description,
+        'cause': product.cause,
+        'price': f'{product.price:.2f}',
+        'image_url': product.image_url,
+        'image_source': product.image_source,
+        'active': product.active,
+    }
 
 
 def _build_cart_payload(cart):
@@ -41,7 +55,7 @@ def _build_cart_payload(cart):
                 'name': product.name,
                 'price': f'{product.price:.2f}',
                 'quantity': quantity,
-                'image_url': product.image_url,
+                'image_url': product.image_source,
                 'subtotal': f'{subtotal:.2f}',
             }
         )
@@ -113,6 +127,14 @@ def _build_qr_base64(content):
     return base64.b64encode(stream.getvalue()).decode('ascii')
 
 
+def _staff_guard(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Faça login primeiro.'}, status=401)
+    if not request.user.is_staff:
+        return JsonResponse({'error': 'Acesso permitido apenas para administradores.'}, status=403)
+    return None
+
+
 @require_GET
 def home(request):
     products = Product.objects.filter(active=True)
@@ -126,6 +148,95 @@ def home(request):
             'cart': cart_payload,
         },
     )
+
+
+@require_POST
+def auth_login(request):
+    username = request.POST.get('username', '').strip()
+    password = request.POST.get('password', '')
+
+    user = authenticate(request, username=username, password=password)
+    if not user:
+        return JsonResponse({'error': 'Usuário ou senha inválidos.'}, status=400)
+
+    login(request, user)
+    return JsonResponse(
+        {
+            'message': 'Login realizado com sucesso.',
+            'user': {
+                'username': user.username,
+                'is_staff': user.is_staff,
+            },
+        }
+    )
+
+
+@require_POST
+def auth_logout(request):
+    logout(request)
+    return JsonResponse({'message': 'Logout realizado com sucesso.'})
+
+
+@require_GET
+def product_manage_list(request):
+    guard = _staff_guard(request)
+    if guard:
+        return guard
+
+    products = Product.objects.all().order_by('name')
+    return JsonResponse({'products': [_product_payload(product) for product in products]})
+
+
+@require_POST
+def product_manage_save(request):
+    guard = _staff_guard(request)
+    if guard:
+        return guard
+
+    product_id = request.POST.get('product_id', '').strip()
+    if product_id:
+        product = get_object_or_404(Product, id=product_id)
+    else:
+        product = Product()
+
+    product.name = request.POST.get('name', '').strip()
+    product.description = request.POST.get('description', '').strip()
+    product.cause = request.POST.get('cause', '').strip() or 'Missões'
+    active_value = request.POST.get('active', 'true').strip().lower()
+    product.active = active_value in {'true', '1', 'on', 'yes'}
+
+    try:
+        product.price = Decimal(request.POST.get('price', '0').replace(',', '.'))
+    except (InvalidOperation, AttributeError):
+        return JsonResponse({'error': 'Preço inválido.'}, status=400)
+
+    image_url = request.POST.get('image_url', '').strip()
+    image_file = request.FILES.get('image_file')
+
+    if image_url:
+        product.image_url = image_url
+    elif not product.image_url:
+        product.image_url = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=900&q=80'
+
+    if image_file:
+        product.image_file = image_file
+
+    if not product.name:
+        return JsonResponse({'error': 'Nome do produto é obrigatório.'}, status=400)
+
+    product.save()
+    return JsonResponse({'message': 'Produto salvo com sucesso.', 'product': _product_payload(product)})
+
+
+@require_POST
+def product_manage_delete(request, product_id):
+    guard = _staff_guard(request)
+    if guard:
+        return guard
+
+    product = get_object_or_404(Product, id=product_id)
+    product.delete()
+    return JsonResponse({'message': 'Produto removido com sucesso.'})
 
 
 @require_POST
