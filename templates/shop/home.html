@@ -1,4 +1,4 @@
-{% load static %}
+﻿{% load static %}
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'shop/styles.css' %}">
 </head>
-<body data-cart-update-template="{% url 'cart_update' 0 %}">
+<body data-cart-update-template="{% url 'cart_update' 0 %}" data-checkout-finalize-url="{% url 'checkout_finalize' %}">
     <header class="hero">
         <div>
             <p class="tag">Loja Missão Andrews São Carlos</p>
@@ -56,6 +56,23 @@
         <div id="cart-items" class="sidebar-items"></div>
         <div class="sidebar-foot">
             <p>Total: <strong id="cart-total">R$ {{ cart.total }}</strong></p>
+            <form id="checkout-form" class="checkout-form">
+                {% csrf_token %}
+                <input type="text" name="first_name" placeholder="Nome" required>
+                <input type="text" name="last_name" placeholder="Sobrenome" required>
+                <input type="text" name="whatsapp" placeholder="WhatsApp" required>
+                <select name="payment_method" required>
+                    <option value="">Forma de pagamento</option>
+                    <option value="pix">Pix</option>
+                </select>
+                <button class="add-btn" type="submit">Finalizar pedido</button>
+            </form>
+            <div id="payment-result" class="payment-result" hidden>
+                <p id="payment-message"></p>
+                <img id="payment-qr" alt="QR Code Pix">
+                <label for="pix-code">Pix Copia e Cola</label>
+                <textarea id="pix-code" readonly></textarea>
+            </div>
         </div>
     </aside>
 

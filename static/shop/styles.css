@@ -263,6 +263,47 @@ h1 {
     color: var(--danger);
 }
 
+.checkout-form {
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.checkout-form input,
+.checkout-form select,
+.checkout-form textarea {
+    width: 100%;
+    border: 1px solid #d7d1c8;
+    border-radius: 10px;
+    padding: 10px;
+    font: inherit;
+}
+
+.payment-result {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #ece8e0;
+}
+
+.payment-result p {
+    margin: 0 0 10px;
+    color: var(--primary-strong);
+    font-weight: 600;
+}
+
+.payment-result img {
+    width: min(220px, 100%);
+    display: block;
+    margin: 0 auto 10px;
+    border: 1px solid #ece8e0;
+    border-radius: 10px;
+}
+
+#pix-code {
+    min-height: 90px;
+    resize: vertical;
+}
+
 @media (max-width: 640px) {
     .hero {
         flex-direction: column;

@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
     const sidebar = document.getElementById('cart-sidebar');
     const overlay = document.getElementById('cart-overlay');
     const openCartButton = document.getElementById('open-cart');
@@ -6,8 +6,14 @@
     const cartCount = document.getElementById('cart-count');
     const cartTotal = document.getElementById('cart-total');
     const cartItems = document.getElementById('cart-items');
+    const checkoutForm = document.getElementById('checkout-form');
+    const paymentResult = document.getElementById('payment-result');
+    const paymentMessage = document.getElementById('payment-message');
+    const paymentQr = document.getElementById('payment-qr');
+    const pixCode = document.getElementById('pix-code');
     const initialCart = JSON.parse(document.getElementById('initial-cart').textContent);
     const cartUpdateTemplate = document.body.dataset.cartUpdateTemplate;
+    const checkoutFinalizeUrl = document.body.dataset.checkoutFinalizeUrl;
 
     function openCart() {
         sidebar.classList.add('open');
@@ -24,6 +30,17 @@
     function csrfToken() {
         const input = document.querySelector('input[name=csrfmiddlewaretoken]');
         return input ? input.value : '';
+    }
+
+    function showError(message) {
+        window.alert(message);
+    }
+
+    function resetPaymentResult() {
+        paymentResult.hidden = true;
+        paymentMessage.textContent = '';
+        paymentQr.removeAttribute('src');
+        pixCode.value = '';
     }
 
     function bindCardQuantityControls() {
@@ -81,20 +98,33 @@
             },
             body: data,
         });
-        if (!response.ok) {
-            throw new Error('Falha ao atualizar carrinho.');
+
+        let payload = {};
+        try {
+            payload = await response.json();
+        } catch (error) {
+            payload = {};
         }
-        return response.json();
+
+        if (!response.ok) {
+            throw new Error(payload.error || 'Falha ao processar a solicitação.');
+        }
+        return payload;
     }
 
     function bindAddToCartForms() {
         document.querySelectorAll('.add-form').forEach((form) => {
             form.addEventListener('submit', async (event) => {
                 event.preventDefault();
-                const quantity = form.querySelector('.qty-input').value;
-                const cart = await post(form.dataset.url, { quantity });
-                renderCart(cart);
-                openCart();
+                try {
+                    const quantity = form.querySelector('.qty-input').value;
+                    const cart = await post(form.dataset.url, { quantity });
+                    renderCart(cart);
+                    resetPaymentResult();
+                    openCart();
+                } catch (error) {
+                    showError(error.message);
+                }
             });
         });
     }
@@ -105,14 +135,43 @@
             const updateUrl = cartUpdateTemplate.replace('/0/', `/${id}/`);
             row.querySelectorAll('button').forEach((button) => {
                 button.addEventListener('click', async () => {
-                    const action = button.dataset.action;
-                    const cart = await post(updateUrl, {
-                        action: action === 'remove' ? 'set' : action,
-                        quantity: action === 'remove' ? '0' : '1',
-                    });
-                    renderCart(cart);
+                    try {
+                        const action = button.dataset.action;
+                        const cart = await post(updateUrl, {
+                            action: action === 'remove' ? 'set' : action,
+                            quantity: action === 'remove' ? '0' : '1',
+                        });
+                        renderCart(cart);
+                        resetPaymentResult();
+                    } catch (error) {
+                        showError(error.message);
+                    }
                 });
             });
+        });
+    }
+
+    function bindCheckoutForm() {
+        checkoutForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const formData = new FormData(checkoutForm);
+            const body = {
+                first_name: formData.get('first_name') || '',
+                last_name: formData.get('last_name') || '',
+                whatsapp: formData.get('whatsapp') || '',
+                payment_method: formData.get('payment_method') || '',
+            };
+
+            try {
+                const payload = await post(checkoutFinalizeUrl, body);
+                renderCart(payload.cart);
+                paymentResult.hidden = false;
+                paymentMessage.textContent = `${payload.message} Pedido #${payload.order_id}.`;
+                paymentQr.src = `data:image/png;base64,${payload.qr_code_base64}`;
+                pixCode.value = payload.pix_code;
+            } catch (error) {
+                showError(error.message);
+            }
         });
     }
 
@@ -122,5 +181,6 @@
 
     bindCardQuantityControls();
     bindAddToCartForms();
+    bindCheckoutForm();
     renderCart(initialCart);
 })();
