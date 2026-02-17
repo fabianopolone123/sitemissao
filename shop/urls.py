@@ -17,4 +17,6 @@ urlpatterns = [
     path('cart/add/<int:product_id>/', views.cart_add, name='cart_add'),
     path('cart/update/<int:product_id>/', views.cart_update, name='cart_update'),
     path('checkout/finalize/', views.checkout_finalize, name='checkout_finalize'),
+    path('checkout/status/<int:order_id>/', views.checkout_status, name='checkout_status'),
+    path('payments/webhook/', views.payments_webhook, name='payments_webhook'),
 ]

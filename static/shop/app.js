@@ -19,14 +19,18 @@
     const closePaymentModalButton = document.getElementById('close-payment-modal');
     const copyPixCodeButton = document.getElementById('copy-pix-code');
     const paymentMessage = document.getElementById('payment-message');
+    const paymentStatusLabel = document.getElementById('payment-status-label');
     const paymentQr = document.getElementById('payment-qr');
 
     const initialCart = JSON.parse(document.getElementById('initial-cart').textContent);
     const cartUpdateTemplate = document.body.dataset.cartUpdateTemplate;
     const checkoutFinalizeUrl = document.body.dataset.checkoutFinalizeUrl;
+    const checkoutStatusTemplate = document.body.dataset.checkoutStatusTemplate;
     const authLoginUrl = document.body.dataset.authLoginUrl;
 
     let currentPixCode = '';
+    let currentOrderId = null;
+    let paymentPollInterval = null;
 
     function csrfToken() {
         const input = document.querySelector('input[name=csrfmiddlewaretoken]');
@@ -96,6 +100,45 @@
     function closePaymentModal() {
         paymentOverlay.hidden = true;
         paymentModal.hidden = true;
+        stopPaymentStatusPolling();
+    }
+
+    function stopPaymentStatusPolling() {
+        if (paymentPollInterval) {
+            window.clearInterval(paymentPollInterval);
+            paymentPollInterval = null;
+        }
+    }
+
+    async function fetchPaymentStatus(orderId) {
+        const statusUrl = checkoutStatusTemplate.replace('/0/', `/${orderId}/`);
+        const response = await fetch(statusUrl, { method: 'GET' });
+        return parseResponse(response);
+    }
+
+    async function refreshPaymentStatus() {
+        if (!currentOrderId) {
+            return;
+        }
+
+        try {
+            const payload = await fetchPaymentStatus(currentOrderId);
+            paymentStatusLabel.textContent = payload.status_label || 'Aguardando pagamento';
+            if (payload.is_paid) {
+                paymentMessage.textContent = `Pagamento aprovado. Pedido #${payload.order_id}.`;
+                stopPaymentStatusPolling();
+            }
+        } catch (error) {
+            stopPaymentStatusPolling();
+            showError(error.message);
+        }
+    }
+
+    function startPaymentStatusPolling(orderId) {
+        currentOrderId = orderId;
+        stopPaymentStatusPolling();
+        refreshPaymentStatus();
+        paymentPollInterval = window.setInterval(refreshPaymentStatus, 5000);
     }
 
     function renderCart(cart) {
@@ -221,8 +264,10 @@
 
                 renderCart(payload.cart);
                 paymentMessage.textContent = `${payload.message} Pedido #${payload.order_id}.`;
+                paymentStatusLabel.textContent = payload.status_label || 'Aguardando pagamento';
                 paymentQr.src = `data:image/png;base64,${payload.qr_code_base64}`;
                 currentPixCode = payload.pix_code;
+                startPaymentStatusPolling(payload.order_id);
                 openPaymentModal();
             } catch (error) {
                 showError(error.message);

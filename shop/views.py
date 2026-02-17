@@ -1,18 +1,19 @@
-﻿import base64
-import io
+import hashlib
+import hmac
+import json
 import os
-import unicodedata
-import uuid
 from decimal import Decimal, InvalidOperation
+from urllib import error, request as urllib_request
 
-import qrcode
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
-from django.utils import timezone
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.utils.crypto import constant_time_compare
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import Order, Product, ProductVariant
@@ -115,66 +116,6 @@ def _build_cart_payload(cart):
     }
 
 
-def _emv_field(field_id, value):
-    return f'{field_id}{len(value):02d}{value}'
-
-
-def _crc16_ccitt(payload):
-    crc = 0xFFFF
-    for byte in payload.encode('utf-8'):
-        crc ^= byte << 8
-        for _ in range(8):
-            if crc & 0x8000:
-                crc = ((crc << 1) ^ 0x1021) & 0xFFFF
-            else:
-                crc = (crc << 1) & 0xFFFF
-    return f'{crc:04X}'
-
-
-def _sanitize_pix_text(text, max_len):
-    normalized = unicodedata.normalize('NFKD', text)
-    ascii_text = normalized.encode('ascii', 'ignore').decode('ascii')
-    return ascii_text.strip().upper()[:max_len]
-
-
-def _build_pix_code(amount, txid):
-    pix_key = os.getenv('PIX_KEY', 'mission.andrews@example.com')
-    merchant_name = _sanitize_pix_text(os.getenv('PIX_MERCHANT_NAME', 'MISSAO ANDREWS'), 25)
-    merchant_city = _sanitize_pix_text(os.getenv('PIX_MERCHANT_CITY', 'SAO CARLOS'), 15)
-    description = _sanitize_pix_text(os.getenv('PIX_DESCRIPTION', 'LOJA MISSAO ANDREWS'), 50)
-
-    merchant_account = (
-        _emv_field('00', 'BR.GOV.BCB.PIX')
-        + _emv_field('01', pix_key)
-        + _emv_field('02', description)
-    )
-    additional_data = _emv_field('05', _sanitize_pix_text(txid, 25))
-    payload = (
-        _emv_field('00', '01')
-        + _emv_field('26', merchant_account)
-        + _emv_field('52', '0000')
-        + _emv_field('53', '986')
-        + _emv_field('54', f'{amount:.2f}')
-        + _emv_field('58', 'BR')
-        + _emv_field('59', merchant_name)
-        + _emv_field('60', merchant_city)
-        + _emv_field('62', additional_data)
-        + '6304'
-    )
-    crc = _crc16_ccitt(payload)
-    return payload + crc
-
-
-def _build_qr_base64(content):
-    qr = qrcode.QRCode(box_size=10, border=2)
-    qr.add_data(content)
-    qr.make(fit=True)
-    image = qr.make_image(fill_color='black', back_color='white')
-    stream = io.BytesIO()
-    image.save(stream, format='PNG')
-    return base64.b64encode(stream.getvalue()).decode('ascii')
-
-
 def _staff_guard(request):
     if not request.user.is_authenticated:
         return JsonResponse({'error': 'Faça login primeiro.'}, status=401)
@@ -242,15 +183,181 @@ def _save_product_from_request(request, product=None):
     return product, None
 
 
+def _mp_access_token():
+    return os.getenv('MP_ACCESS_TOKEN_PROD', '').strip()
+
+
+def _mp_api_request(method, path, payload=None):
+    token = _mp_access_token()
+    if not token:
+        raise ValueError('MP_ACCESS_TOKEN_PROD não configurado no servidor.')
+
+    url = f'https://api.mercadopago.com{path}'
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Accept': 'application/json',
+    }
+    data = None
+
+    if payload is not None:
+        headers['Content-Type'] = 'application/json'
+        headers['X-Idempotency-Key'] = hashlib.sha256(os.urandom(16)).hexdigest()
+        data = json.dumps(payload).encode('utf-8')
+
+    req = urllib_request.Request(url=url, data=data, headers=headers, method=method)
+    try:
+        with urllib_request.urlopen(req, timeout=30) as response:
+            body = response.read().decode('utf-8')
+            return json.loads(body) if body else {}
+    except error.HTTPError as exc:
+        try:
+            body = exc.read().decode('utf-8')
+            details = json.loads(body)
+            message = details.get('message') or details.get('error') or body
+        except Exception:
+            message = str(exc)
+        raise ValueError(f'Erro Mercado Pago: {message}') from exc
+
+
+def _mp_generate_payer_email(order):
+    digits = ''.join(ch for ch in order.whatsapp if ch.isdigit())
+    suffix = digits[-11:] if digits else 'cliente'
+    return f'pedido{order.id}.{suffix}@missaoandrewsc.com.br'
+
+
+def _create_mp_pix_payment(order):
+    external_reference = f'ORDER_{order.id}'
+    payload = {
+        'transaction_amount': float(order.total),
+        'description': f'Pedido #{order.id} - Loja Missão Andrews',
+        'payment_method_id': 'pix',
+        'external_reference': external_reference,
+        'notification_url': os.getenv('MP_NOTIFICATION_URL', 'https://missaoandrewsc.com.br/payments/webhook/'),
+        'payer': {
+            'email': _mp_generate_payer_email(order),
+            'first_name': order.first_name[:60],
+            'last_name': order.last_name[:60],
+        },
+    }
+    payment = _mp_api_request('POST', '/v1/payments', payload)
+    tx_data = payment.get('point_of_interaction', {}).get('transaction_data', {})
+    pix_code = tx_data.get('qr_code', '')
+    qr_base64 = tx_data.get('qr_code_base64', '')
+
+    if not pix_code or not qr_base64:
+        raise ValueError('Mercado Pago não retornou QR Code Pix para este pagamento.')
+
+    return {
+        'payment_id': str(payment.get('id', '')),
+        'external_reference': external_reference,
+        'status': payment.get('status', '') or '',
+        'status_detail': payment.get('status_detail', '') or '',
+        'pix_code': pix_code,
+        'qr_base64': qr_base64,
+    }
+
+
+def _get_mp_payment(payment_id):
+    return _mp_api_request('GET', f'/v1/payments/{payment_id}')
+
+
+def _sync_order_from_mp_payment(order, payment_data):
+    status = (payment_data.get('status') or '').lower()
+    status_detail = payment_data.get('status_detail') or ''
+    payment_id = str(payment_data.get('id') or '')
+    external_reference = payment_data.get('external_reference') or order.mp_external_reference
+
+    update_fields = []
+    if payment_id and payment_id != order.mp_payment_id:
+        order.mp_payment_id = payment_id
+        update_fields.append('mp_payment_id')
+    if external_reference and external_reference != order.mp_external_reference:
+        order.mp_external_reference = external_reference
+        update_fields.append('mp_external_reference')
+    if status != order.mp_status:
+        order.mp_status = status
+        update_fields.append('mp_status')
+    if status_detail != order.mp_status_detail:
+        order.mp_status_detail = status_detail
+        update_fields.append('mp_status_detail')
+
+    if status == 'approved' and not order.is_paid:
+        order.is_paid = True
+        order.paid_at = timezone.now()
+        update_fields.extend(['is_paid', 'paid_at'])
+    elif status != 'approved' and order.is_paid:
+        order.is_paid = False
+        order.paid_at = None
+        update_fields.extend(['is_paid', 'paid_at'])
+
+    if update_fields:
+        order.save(update_fields=update_fields)
+
+
+def _is_valid_mp_webhook_signature(request, payment_id):
+    secret = os.getenv('MP_WEBHOOK_SECRET', '').strip()
+    if not secret:
+        return True
+
+    signature = request.headers.get('x-signature', '')
+    request_id = request.headers.get('x-request-id', '')
+    if not signature or not request_id:
+        return False
+
+    ts_value = ''
+    v1_value = ''
+    for part in signature.split(','):
+        key, _, value = part.strip().partition('=')
+        if key == 'ts':
+            ts_value = value
+        elif key == 'v1':
+            v1_value = value
+
+    if not ts_value or not v1_value:
+        return False
+
+    manifest = f'id:{payment_id};request-id:{request_id};ts:{ts_value};'
+    expected = hmac.new(secret.encode('utf-8'), manifest.encode('utf-8'), hashlib.sha256).hexdigest()
+    return constant_time_compare(expected, v1_value)
+
+
+def _extract_webhook_payment_id(request):
+    payment_id = request.GET.get('data.id') or request.GET.get('id')
+    if payment_id:
+        return str(payment_id)
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        payload = {}
+
+    if isinstance(payload, dict):
+        data = payload.get('data', {})
+        if isinstance(data, dict) and data.get('id'):
+            return str(data['id'])
+        if payload.get('id'):
+            return str(payload['id'])
+    return ''
+
+
+def _order_status_label(order):
+    if order.is_paid:
+        return 'Pagamento aprovado'
+    status_map = {
+        'pending': 'Aguardando pagamento',
+        'in_process': 'Processando pagamento',
+        'rejected': 'Pagamento recusado',
+        'cancelled': 'Pagamento cancelado',
+    }
+    return status_map.get(order.mp_status, 'Aguardando pagamento')
+
+
 @require_GET
 def home(request):
     products = Product.objects.filter(active=True).prefetch_related('variants')
     for product in products:
         product.active_variants = [variant for variant in product.variants.all() if variant.active]
-        if product.active_variants:
-            product.display_price = min(variant.price for variant in product.active_variants)
-        else:
-            product.display_price = product.price
+        product.display_price = product.price
     cart = _get_cart(request.session)
     cart_payload = _build_cart_payload(cart)
     return render(
@@ -361,12 +468,17 @@ def manage_order_payment_page(request, order_id):
     if action == 'mark_paid':
         order.is_paid = True
         order.paid_at = timezone.now()
-        order.save(update_fields=['is_paid', 'paid_at'])
+        order.mp_status = 'approved'
+        order.save(update_fields=['is_paid', 'paid_at', 'mp_status'])
         messages.success(request, f'Pedido #{order.id} marcado como pago.')
     elif action == 'mark_unpaid':
         order.is_paid = False
         order.paid_at = None
-        order.save(update_fields=['is_paid', 'paid_at'])
+        if order.mp_status == 'approved':
+            order.mp_status = 'pending'
+            order.save(update_fields=['is_paid', 'paid_at', 'mp_status'])
+        else:
+            order.save(update_fields=['is_paid', 'paid_at'])
         messages.success(request, f'Pedido #{order.id} marcado como não pago.')
     else:
         messages.error(request, 'Ação inválida para status de pagamento.')
@@ -517,19 +629,32 @@ def checkout_finalize(request):
         return JsonResponse({'error': 'Seu carrinho está vazio.'}, status=400)
 
     amount = Decimal(cart_payload['total'])
-    txid = f'PED{uuid.uuid4().hex[:12].upper()}'
-    pix_code = _build_pix_code(amount, txid)
-    qr_base64 = _build_qr_base64(pix_code)
-
     order = Order.objects.create(
         first_name=first_name,
         last_name=last_name,
         whatsapp=whatsapp,
         payment_method=payment_method,
         total=amount,
-        pix_code=pix_code,
+        pix_code='',
         items_json=cart_payload['items'],
+        mp_status='pending',
     )
+
+    try:
+        pix_payload = _create_mp_pix_payment(order)
+    except ValueError as exc:
+        order.delete()
+        return JsonResponse({'error': str(exc)}, status=400)
+
+    order.pix_code = pix_payload['pix_code']
+    order.mp_payment_id = pix_payload['payment_id']
+    order.mp_external_reference = pix_payload['external_reference']
+    order.mp_status = (pix_payload['status'] or 'pending').lower()
+    order.mp_status_detail = pix_payload['status_detail']
+    if order.mp_status == 'approved':
+        order.is_paid = True
+        order.paid_at = timezone.now()
+    order.save()
 
     request.session['cart'] = {}
     request.session.modified = True
@@ -538,8 +663,65 @@ def checkout_finalize(request):
         {
             'message': 'Pedido gerado com sucesso. Faça o pagamento no Pix.',
             'order_id': order.id,
-            'qr_code_base64': qr_base64,
-            'pix_code': pix_code,
+            'order_status': order.mp_status,
+            'status_label': _order_status_label(order),
+            'qr_code_base64': pix_payload['qr_base64'],
+            'pix_code': pix_payload['pix_code'],
             'cart': _build_cart_payload(request.session['cart']),
         }
     )
+
+
+@require_GET
+def checkout_status(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+
+    if order.mp_payment_id and not order.is_paid and order.mp_status in {'pending', 'in_process'}:
+        try:
+            payment_data = _get_mp_payment(order.mp_payment_id)
+            _sync_order_from_mp_payment(order, payment_data)
+            order.refresh_from_db()
+        except ValueError:
+            pass
+
+    return JsonResponse(
+        {
+            'order_id': order.id,
+            'is_paid': order.is_paid,
+            'status': order.mp_status,
+            'status_detail': order.mp_status_detail,
+            'status_label': _order_status_label(order),
+        }
+    )
+
+
+@csrf_exempt
+@require_POST
+def payments_webhook(request):
+    payment_id = _extract_webhook_payment_id(request)
+    if not payment_id:
+        return JsonResponse({'ok': True, 'ignored': 'without_payment_id'})
+
+    if not _is_valid_mp_webhook_signature(request, payment_id):
+        return JsonResponse({'error': 'assinatura inválida'}, status=401)
+
+    try:
+        payment_data = _get_mp_payment(payment_id)
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'payment_lookup_failed'}, status=400)
+
+    external_reference = payment_data.get('external_reference', '')
+    order = None
+    if external_reference.startswith('ORDER_'):
+        try:
+            order_id = int(external_reference.replace('ORDER_', '', 1))
+            order = Order.objects.filter(id=order_id).first()
+        except ValueError:
+            order = None
+    if order is None:
+        order = Order.objects.filter(mp_payment_id=str(payment_data.get('id', ''))).first()
+    if order is None:
+        return JsonResponse({'ok': True, 'ignored': 'order_not_found'})
+
+    _sync_order_from_mp_payment(order, payment_data)
+    return JsonResponse({'ok': True})

@@ -13,6 +13,7 @@
 <body
     data-cart-update-template="{% url 'cart_update' 0 %}"
     data-checkout-finalize-url="{% url 'checkout_finalize' %}"
+    data-checkout-status-template="{% url 'checkout_status' 0 %}"
     data-auth-login-url="{% url 'auth_login' %}"
     data-user-authenticated="{{ request.user.is_authenticated|yesno:'true,false' }}"
 >
@@ -119,6 +120,7 @@
         <button id="close-payment-modal" class="payment-close-btn" type="button">X</button>
         <h3>Pagamento Pix</h3>
         <p id="payment-message"></p>
+        <p id="payment-status-label" class="cart-meta"></p>
         <img id="payment-qr" alt="QR Code Pix">
         <button id="copy-pix-code" class="add-btn" type="button">Copiar código Pix</button>
     </section>
