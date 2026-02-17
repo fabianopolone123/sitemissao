@@ -530,6 +530,23 @@ h1 {
     padding: 0 18px 24px;
 }
 
+.sales-page {
+    display: grid;
+    grid-template-columns: 1.3fr 0.9fr;
+    gap: 14px;
+}
+
+.sales-grid {
+    padding: 0;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.sales-summary-card {
+    position: sticky;
+    top: 12px;
+    height: fit-content;
+}
+
 .manage-nav {
     display: flex;
     flex-wrap: wrap;
@@ -665,6 +682,14 @@ h1 {
         flex-wrap: wrap;
         max-width: 280px;
         justify-content: flex-end;
+    }
+
+    .sales-page {
+        grid-template-columns: 1fr;
+    }
+
+    .sales-summary-card {
+        position: static;
     }
 }
 

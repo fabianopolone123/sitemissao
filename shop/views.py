@@ -118,6 +118,69 @@ def _build_cart_payload(cart):
     }
 
 
+def _build_order_items_from_payload(items_payload):
+    if not isinstance(items_payload, list) or not items_payload:
+        return None, None, 'Carrinho vazio para venda.'
+
+    product_ids = []
+    variant_ids = []
+    normalized = []
+
+    for raw in items_payload:
+        try:
+            product_id = int(raw.get('product_id'))
+            variant_id = raw.get('variant_id')
+            variant_id = int(variant_id) if variant_id not in (None, '', 0, '0') else None
+            quantity = int(raw.get('quantity', 1))
+            if quantity <= 0:
+                continue
+            product_ids.append(product_id)
+            if variant_id:
+                variant_ids.append(variant_id)
+            normalized.append((product_id, variant_id, quantity))
+        except (TypeError, ValueError, AttributeError):
+            return None, None, 'Item invalido no carrinho.'
+
+    if not normalized:
+        return None, None, 'Carrinho vazio para venda.'
+
+    products = Product.objects.filter(id__in=product_ids, active=True).prefetch_related('variants')
+    product_map = {product.id: product for product in products}
+    variants_map = {}
+    if variant_ids:
+        variants = ProductVariant.objects.filter(id__in=variant_ids, active=True)
+        variants_map = {variant.id: variant for variant in variants}
+
+    order_items = []
+    total = Decimal('0.00')
+
+    for product_id, variant_id, quantity in normalized:
+        product = product_map.get(product_id)
+        if not product:
+            return None, None, f'Produto {product_id} nao encontrado ou inativo.'
+        variant = variants_map.get(variant_id) if variant_id else None
+        if variant_id and (not variant or variant.product_id != product.id):
+            return None, None, f'Variacao invalida para {product.name}.'
+
+        unit_price = variant.price if variant else product.price
+        subtotal = unit_price * quantity
+        total += subtotal
+        item_name = product.name if not variant else f'{product.name} - {variant.name}'
+        order_items.append(
+            {
+                'id': product.id,
+                'variant_id': variant.id if variant else None,
+                'name': item_name,
+                'price': f'{unit_price:.2f}',
+                'quantity': quantity,
+                'subtotal': f'{subtotal:.2f}',
+                'image_url': product.image_source,
+            }
+        )
+
+    return order_items, total, None
+
+
 def _staff_guard(request):
     if not request.user.is_authenticated:
         return JsonResponse({'error': 'FaÃ§a login primeiro.'}, status=401)
@@ -477,6 +540,7 @@ def _order_status_label(order):
     status_map = {
         'pending': 'Aguardando pagamento',
         'in_process': 'Processando pagamento',
+        'approved_manual': 'Pagamento aprovado',
         'rejected': 'Pagamento recusado',
         'cancelled': 'Pagamento cancelado',
     }
@@ -562,6 +626,135 @@ def manage_products_page(request):
             'users': users,
         },
     )
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_GET
+def manage_sales_page(request):
+    products = Product.objects.filter(active=True).prefetch_related('variants').order_by('name')
+    for product in products:
+        product.active_variants = [variant for variant in product.variants.all() if variant.active]
+    return render(
+        request,
+        'shop/manage_sales.html',
+        {
+            'products': products,
+        },
+    )
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_POST
+def manage_sales_create_order(request):
+    customer_name = request.POST.get('customer_name', '').strip()
+    whatsapp_raw = request.POST.get('whatsapp', '').strip()
+    payment_method = request.POST.get('payment_method', '').strip().lower()
+    mark_paid_now = request.POST.get('mark_paid_now', '').strip().lower() in {'1', 'true', 'on', 'yes'}
+    items_text = request.POST.get('items_json', '').strip()
+
+    if not customer_name or not whatsapp_raw:
+        return JsonResponse({'error': 'Informe nome completo e WhatsApp.'}, status=400)
+
+    if payment_method not in {Order.PAYMENT_PIX, Order.PAYMENT_CARD, Order.PAYMENT_CASH}:
+        return JsonResponse({'error': 'Forma de pagamento invalida.'}, status=400)
+
+    try:
+        items_payload = json.loads(items_text or '[]')
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Carrinho invalido para venda.'}, status=400)
+
+    order_items, total, error_text = _build_order_items_from_payload(items_payload)
+    if error_text:
+        return JsonResponse({'error': error_text}, status=400)
+
+    parts = customer_name.split()
+    first_name = parts[0]
+    last_name = ' '.join(parts[1:]) if len(parts) > 1 else '-'
+
+    order = Order.objects.create(
+        first_name=first_name,
+        last_name=last_name,
+        whatsapp=whatsapp_raw,
+        payment_method=payment_method,
+        total=total,
+        pix_code='',
+        items_json=order_items,
+        mp_status='pending',
+        created_by_staff=True,
+    )
+
+    if payment_method == Order.PAYMENT_PIX:
+        try:
+            pix_payload = _create_mp_pix_payment(order)
+        except ValueError as exc:
+            order.delete()
+            return JsonResponse({'error': str(exc)}, status=400)
+
+        order.pix_code = pix_payload['pix_code']
+        order.mp_payment_id = pix_payload['payment_id']
+        order.mp_external_reference = pix_payload['external_reference']
+        order.mp_status = (pix_payload['status'] or 'pending').lower()
+        order.mp_status_detail = pix_payload['status_detail']
+        if order.mp_status == 'approved':
+            order.is_paid = True
+            order.paid_at = timezone.now()
+        order.save()
+        if order.is_paid and not order.whatsapp_notified:
+            _send_whatsapp_notifications_for_order(order)
+
+        return JsonResponse(
+            {
+                'message': f'Venda #{order.id} criada. Pix gerado.',
+                'order_id': order.id,
+                'is_paid': order.is_paid,
+                'status_label': _order_status_label(order),
+                'qr_code_base64': pix_payload['qr_base64'],
+                'pix_code': pix_payload['pix_code'],
+                'total': f'{order.total:.2f}',
+            }
+        )
+
+    if mark_paid_now:
+        order.is_paid = True
+        order.paid_at = timezone.now()
+        order.mp_status = 'approved_manual'
+        order.save(update_fields=['is_paid', 'paid_at', 'mp_status'])
+        if not order.whatsapp_notified:
+            _send_whatsapp_notifications_for_order(order)
+
+    return JsonResponse(
+        {
+            'message': f'Venda #{order.id} criada com sucesso.',
+            'order_id': order.id,
+            'is_paid': order.is_paid,
+            'status_label': _order_status_label(order),
+            'total': f'{order.total:.2f}',
+        }
+    )
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_POST
+def manage_sales_mark_paid(request, order_id):
+    order = get_object_or_404(Order, id=order_id, created_by_staff=True)
+    if order.is_paid:
+        return JsonResponse({'message': 'Venda ja marcada como paga.', 'order_id': order.id, 'is_paid': True})
+
+    order.is_paid = True
+    order.paid_at = timezone.now()
+    if order.mp_status in {'', 'pending'}:
+        order.mp_status = 'approved_manual'
+        order.save(update_fields=['is_paid', 'paid_at', 'mp_status'])
+    else:
+        order.save(update_fields=['is_paid', 'paid_at'])
+
+    if not order.whatsapp_notified:
+        _send_whatsapp_notifications_for_order(order)
+
+    return JsonResponse({'message': f'Venda #{order.id} marcada como paga.', 'order_id': order.id, 'is_paid': True})
 
 
 @login_required

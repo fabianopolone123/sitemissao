@@ -40,8 +40,12 @@ class ProductVariant(models.Model):
 
 class Order(models.Model):
     PAYMENT_PIX = 'pix'
+    PAYMENT_CARD = 'card'
+    PAYMENT_CASH = 'cash'
     PAYMENT_CHOICES = [
         (PAYMENT_PIX, 'Pix'),
+        (PAYMENT_CARD, 'Cartao'),
+        (PAYMENT_CASH, 'Dinheiro'),
     ]
 
     first_name = models.CharField(max_length=80)
@@ -62,6 +66,7 @@ class Order(models.Model):
     whatsapp_notified = models.BooleanField(default=False)
     whatsapp_notified_at = models.DateTimeField(blank=True, null=True)
     whatsapp_notify_error = models.CharField(max_length=255, blank=True)
+    created_by_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
