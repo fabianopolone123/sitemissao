@@ -20,9 +20,9 @@
 
     <main class="manage-page">
         <nav class="manage-nav">
-            <a class="secondary-button link-button" href="#secao-produtos">Produtos</a>
-            <a class="secondary-button link-button" href="#secao-pedidos">Pedidos</a>
-            <a class="secondary-button link-button" href="#secao-usuarios">Usuários</a>
+            <button type="button" class="secondary-button manage-tab-btn is-active" data-target="secao-produtos">Produtos</button>
+            <button type="button" class="secondary-button manage-tab-btn" data-target="secao-pedidos">Pedidos</button>
+            <button type="button" class="secondary-button manage-tab-btn" data-target="secao-usuarios">Usuários</button>
         </nav>
 
         {% if messages %}
@@ -33,7 +33,7 @@
             </section>
         {% endif %}
 
-        <section id="secao-produtos" class="panel-grid section-card">
+        <section id="secao-produtos" class="panel-grid section-card manage-section is-visible">
             <div>
                 <p class="panel-subtitle">Produtos ativos ({{ active_products|length }})</p>
                 <div class="panel-list">
@@ -118,11 +118,17 @@
             </div>
         </section>
 
-        <section id="secao-pedidos" class="orders-section section-card">
+        <section id="secao-pedidos" class="orders-section section-card manage-section">
             <h2>Pedidos recebidos</h2>
+            <input
+                id="orders-search"
+                type="search"
+                class="orders-search-input"
+                placeholder="Pesquisar pedido por cliente, telefone, número ou item..."
+            >
             <div class="orders-list">
                 {% for order in orders %}
-                    <article class="order-card {% if order.is_paid %}order-card-paid{% else %}order-card-unpaid{% endif %}">
+                    <article class="order-card {% if order.is_paid %}order-card-paid{% else %}order-card-unpaid{% endif %}" data-order-search="#{{ order.id }} {{ order.first_name }} {{ order.last_name }} {{ order.whatsapp }} {{ order.items_json|safe }}">
                         <div class="order-head">
                             <strong>Pedido #{{ order.id }}</strong>
                             <span class="status-chip {% if order.is_paid %}status-chip-active{% else %}status-chip-inactive{% endif %}">
@@ -160,7 +166,7 @@
             </div>
         </section>
 
-        <section id="secao-usuarios" class="orders-section section-card">
+        <section id="secao-usuarios" class="orders-section section-card manage-section">
             <h2>Usuários de acesso</h2>
             <p class="cart-meta">Cadastre aqui novos logins para acessar este painel.</p>
 
@@ -198,5 +204,37 @@
             </div>
         </section>
     </main>
+    <script>
+        (function () {
+            const sections = document.querySelectorAll('.manage-section');
+            const tabButtons = document.querySelectorAll('.manage-tab-btn');
+            const ordersSearch = document.getElementById('orders-search');
+            const orderCards = document.querySelectorAll('.order-card');
+
+            function showSection(targetId) {
+                sections.forEach((section) => {
+                    section.classList.toggle('is-visible', section.id === targetId);
+                });
+                tabButtons.forEach((button) => {
+                    button.classList.toggle('is-active', button.dataset.target === targetId);
+                });
+            }
+
+            tabButtons.forEach((button) => {
+                button.addEventListener('click', () => showSection(button.dataset.target));
+            });
+
+            if (ordersSearch) {
+                ordersSearch.addEventListener('input', () => {
+                    const term = ordersSearch.value.trim().toLowerCase();
+                    orderCards.forEach((card) => {
+                        const haystack = (card.getAttribute('data-order-search') || '').toLowerCase();
+                        const matches = !term || haystack.includes(term);
+                        card.style.display = matches ? '' : 'none';
+                    });
+                });
+            }
+        })();
+    </script>
 </body>
 </html>

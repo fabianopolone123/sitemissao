@@ -537,11 +537,29 @@ h1 {
     margin-bottom: 12px;
 }
 
+.manage-tab-btn.is-active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+
 .section-card {
     border: 1px solid #e3ddd2;
     border-radius: 14px;
     background: #fffdf9;
     padding: 14px;
+}
+
+.manage-section {
+    display: none;
+}
+
+.manage-section.is-visible {
+    display: grid;
+}
+
+.orders-section.manage-section.is-visible {
+    display: block;
 }
 
 .flash-list {
@@ -569,6 +587,16 @@ h1 {
 .orders-list {
     display: grid;
     gap: 12px;
+}
+
+.orders-search-input {
+    width: 100%;
+    border: 1px solid #d7d1c8;
+    border-radius: 10px;
+    padding: 10px;
+    font: inherit;
+    margin-bottom: 12px;
+    background: #fff;
 }
 
 .users-list {
