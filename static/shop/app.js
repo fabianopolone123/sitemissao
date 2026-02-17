@@ -22,6 +22,12 @@
     const paymentStatusLabel = document.getElementById('payment-status-label');
     const paymentQr = document.getElementById('payment-qr');
 
+    const successOverlay = document.getElementById('success-modal-overlay');
+    const successModal = document.getElementById('success-modal');
+    const closeSuccessModalButton = document.getElementById('close-success-modal');
+    const successOkButton = document.getElementById('success-ok-btn');
+    const successOrderDetails = document.getElementById('success-order-details');
+
     const initialCart = JSON.parse(document.getElementById('initial-cart').textContent);
     const cartUpdateTemplate = document.body.dataset.cartUpdateTemplate;
     const checkoutFinalizeUrl = document.body.dataset.checkoutFinalizeUrl;
@@ -31,6 +37,8 @@
     let currentPixCode = '';
     let currentOrderId = null;
     let paymentPollInterval = null;
+    let currentOrderSummary = null;
+    let paymentApprovedShown = false;
 
     function csrfToken() {
         const input = document.querySelector('input[name=csrfmiddlewaretoken]');
@@ -103,6 +111,16 @@
         stopPaymentStatusPolling();
     }
 
+    function openSuccessModal() {
+        successOverlay.hidden = false;
+        successModal.hidden = false;
+    }
+
+    function closeSuccessModal() {
+        successOverlay.hidden = true;
+        successModal.hidden = true;
+    }
+
     function stopPaymentStatusPolling() {
         if (paymentPollInterval) {
             window.clearInterval(paymentPollInterval);
@@ -127,6 +145,15 @@
             if (payload.is_paid) {
                 paymentMessage.textContent = `Pagamento aprovado. Pedido #${payload.order_id}.`;
                 stopPaymentStatusPolling();
+                if (!paymentApprovedShown) {
+                    paymentApprovedShown = true;
+                    const summary = currentOrderSummary || {};
+                    const customerName = summary.customer_name || 'Cliente';
+                    const whatsapp = summary.whatsapp || '-';
+                    const total = summary.total || '0.00';
+                    successOrderDetails.textContent = `Pedido #${payload.order_id} | ${customerName} | WhatsApp: ${whatsapp} | Total: R$ ${total}`;
+                    openSuccessModal();
+                }
             }
         } catch (error) {
             stopPaymentStatusPolling();
@@ -136,6 +163,7 @@
 
     function startPaymentStatusPolling(orderId) {
         currentOrderId = orderId;
+        paymentApprovedShown = false;
         stopPaymentStatusPolling();
         refreshPaymentStatus();
         paymentPollInterval = window.setInterval(refreshPaymentStatus, 5000);
@@ -267,6 +295,7 @@
                 paymentStatusLabel.textContent = payload.status_label || 'Aguardando pagamento';
                 paymentQr.src = `data:image/png;base64,${payload.qr_code_base64}`;
                 currentPixCode = payload.pix_code;
+                currentOrderSummary = payload.order_summary || null;
                 startPaymentStatusPolling(payload.order_id);
                 openPaymentModal();
             } catch (error) {
@@ -319,6 +348,9 @@
     closePaymentModalButton.addEventListener('click', closePaymentModal);
     paymentOverlay.addEventListener('click', closePaymentModal);
     copyPixCodeButton.addEventListener('click', copyPixCode);
+    closeSuccessModalButton.addEventListener('click', closeSuccessModal);
+    successOkButton.addEventListener('click', closeSuccessModal);
+    successOverlay.addEventListener('click', closeSuccessModal);
 
     bindCardQuantityControls();
     bindVariantSelectors();

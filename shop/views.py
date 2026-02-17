@@ -659,6 +659,13 @@ def checkout_finalize(request):
     request.session['cart'] = {}
     request.session.modified = True
 
+    order_summary = {
+        'customer_name': f'{order.first_name} {order.last_name}'.strip(),
+        'whatsapp': order.whatsapp,
+        'total': f'{order.total:.2f}',
+        'items': order.items_json,
+    }
+
     return JsonResponse(
         {
             'message': 'Pedido gerado com sucesso. Faça o pagamento no Pix.',
@@ -667,6 +674,7 @@ def checkout_finalize(request):
             'status_label': _order_status_label(order),
             'qr_code_base64': pix_payload['qr_base64'],
             'pix_code': pix_payload['pix_code'],
+            'order_summary': order_summary,
             'cart': _build_cart_payload(request.session['cart']),
         }
     )

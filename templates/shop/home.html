@@ -104,6 +104,7 @@
 
     <div id="login-modal-overlay" class="payment-modal-overlay" hidden></div>
     <div id="payment-modal-overlay" class="payment-modal-overlay" hidden></div>
+    <div id="success-modal-overlay" class="payment-modal-overlay" hidden></div>
 
     <section id="login-modal" class="payment-modal" hidden>
         <button id="close-login-modal" class="payment-close-btn" type="button">X</button>
@@ -123,6 +124,19 @@
         <p id="payment-status-label" class="cart-meta"></p>
         <img id="payment-qr" alt="QR Code Pix">
         <button id="copy-pix-code" class="add-btn" type="button">Copiar código Pix</button>
+    </section>
+
+    <section id="success-modal" class="payment-modal" hidden>
+        <button id="close-success-modal" class="payment-close-btn" type="button">X</button>
+        <h3>Pagamento aprovado</h3>
+        <p id="success-order-details"></p>
+        <p class="cart-meta">
+            Retirada no Colégio Adventista de São Carlos no dia 21/02/2026, a partir das 19:30.
+        </p>
+        <p class="cart-meta">
+            Obrigado pela sua contribuição. Cada pedido ajuda a Missão Andrews a alcançar crianças e famílias com amor, cuidado e a mensagem de Jesus.
+        </p>
+        <button id="success-ok-btn" class="add-btn" type="button">Entendi</button>
     </section>
 
     {{ cart|json_script:"initial-cart" }}
