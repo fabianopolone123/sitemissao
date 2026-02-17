@@ -74,6 +74,24 @@ class AuditLogMiddleware:
             return
         if normalized_path.endswith('/sellers.json') or normalized_path.endswith('sellers.json'):
             return
+        noisy_paths = {
+            '/robots.txt',
+            '/sitemap.xml',
+            '/.env',
+            '/wp-login.php',
+            '/xmlrpc.php',
+            '/phpmyadmin',
+        }
+        if normalized_path in noisy_paths:
+            return
+        noisy_prefixes = (
+            '/.well-known/',
+            '/wp-',
+            '/wordpress/',
+            '/phpmyadmin/',
+        )
+        if normalized_path.startswith(noisy_prefixes):
+            return
 
         started_at = getattr(request, '_audit_started_at', time.time())
         response_ms = int((time.time() - started_at) * 1000)
