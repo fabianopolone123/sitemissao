@@ -1,0 +1,65 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Missao Viva Store</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'shop/styles.css' %}">
+</head>
+<body data-cart-update-template="{% url 'cart_update' 0 %}">
+    <header class="hero">
+        <div>
+            <p class="tag">Loja Missionaria</p>
+            <h1>Missao Viva Store</h1>
+            <p class="subtitle">Cada item vendido fortalece projetos no Amazonas, na Africa e em outras frentes missionarias.</p>
+        </div>
+        <button id="open-cart" class="cart-button" type="button">
+            Carrinho <span id="cart-count">{{ cart.count }}</span>
+        </button>
+    </header>
+
+    <main class="products-grid">
+        {% for product in products %}
+            <article class="product-card" data-product-id="{{ product.id }}">
+                <img src="{{ product.image_url }}" alt="{{ product.name }}">
+                <div class="content">
+                    <small>{{ product.cause }}</small>
+                    <h2>{{ product.name }}</h2>
+                    <p>{{ product.description }}</p>
+                    <strong>R$ {{ product.price }}</strong>
+                    <form class="add-form" data-url="{% url 'cart_add' product.id %}">
+                        {% csrf_token %}
+                        <div class="qty-control">
+                            <button type="button" class="qty-btn" data-action="minus">-</button>
+                            <input type="number" name="quantity" min="1" value="1" class="qty-input">
+                            <button type="button" class="qty-btn" data-action="plus">+</button>
+                        </div>
+                        <button class="add-btn" type="submit">Adicionar ao carrinho</button>
+                    </form>
+                </div>
+            </article>
+        {% empty %}
+            <p>Nenhum produto cadastrado ainda.</p>
+        {% endfor %}
+    </main>
+
+    <div id="cart-overlay" class="overlay"></div>
+    <aside id="cart-sidebar" class="sidebar" aria-hidden="true">
+        <div class="sidebar-head">
+            <h3>Seu carrinho</h3>
+            <button id="close-cart" type="button">X</button>
+        </div>
+        <div id="cart-items" class="sidebar-items"></div>
+        <div class="sidebar-foot">
+            <p>Total: <strong id="cart-total">R$ {{ cart.total }}</strong></p>
+        </div>
+    </aside>
+
+    {{ cart|json_script:"initial-cart" }}
+    <script src="{% static 'shop/app.js' %}"></script>
+</body>
+</html>
