@@ -653,7 +653,6 @@ def manage_reports_page(request):
     orders = Order.objects.all()
     paid_orders = orders.filter(is_paid=True)
     delivered_orders = orders.filter(is_delivered=True).order_by('-delivered_at', '-id')[:80]
-    delivered_unpaid_orders = orders.filter(is_delivered=True, is_paid=False).order_by('-delivered_at', '-id')[:80]
     total_orders = orders.count()
     total_paid_orders = paid_orders.count()
     total_revenue = paid_orders.aggregate(total=Sum('total')).get('total') or Decimal('0.00')
@@ -713,7 +712,6 @@ def manage_reports_page(request):
             'chart_payment_totals': chart_payment_totals,
             'status_counter': status_counter,
             'delivered_orders': delivered_orders,
-            'delivered_unpaid_orders': delivered_unpaid_orders,
         },
     )
 

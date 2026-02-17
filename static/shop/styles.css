@@ -576,6 +576,14 @@ h1 {
     min-height: 260px;
 }
 
+.report-delivered-compact .panel-list {
+    max-height: 260px;
+}
+
+.report-delivered-compact .panel-row {
+    padding: 6px 8px;
+}
+
 .manage-nav {
     display: flex;
     flex-wrap: wrap;

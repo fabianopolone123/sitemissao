@@ -8,20 +8,32 @@
         });
     }
 
+    function getJson(id, fallback) {
+        const el = document.getElementById(id);
+        if (!el) {
+            return fallback;
+        }
+        try {
+            return JSON.parse(el.textContent);
+        } catch (error) {
+            return fallback;
+        }
+    }
+
     if (typeof Chart === 'undefined') {
         showChartError('Erro ao carregar graficos. Atualize a pagina (Ctrl+F5).');
         return;
     }
 
-    try {
-        const dailyLabels = JSON.parse(document.getElementById('chart-daily-labels').textContent);
-        const dailyValues = JSON.parse(document.getElementById('chart-daily-values').textContent);
-        const dailyCounts = JSON.parse(document.getElementById('chart-daily-counts').textContent);
-        const paymentLabels = JSON.parse(document.getElementById('chart-payment-labels').textContent);
-        const paymentCounts = JSON.parse(document.getElementById('chart-payment-counts').textContent);
-        const paymentTotals = JSON.parse(document.getElementById('chart-payment-totals').textContent);
-        const statusCounter = JSON.parse(document.getElementById('chart-status-counter').textContent);
+    const dailyLabels = getJson('chart-daily-labels', []);
+    const dailyValues = getJson('chart-daily-values', []);
+    const dailyCounts = getJson('chart-daily-counts', []);
+    const paymentLabels = getJson('chart-payment-labels', []);
+    const paymentCounts = getJson('chart-payment-counts', []);
+    const paymentTotals = getJson('chart-payment-totals', []);
+    const statusCounter = getJson('chart-status-counter', {});
 
+    try {
         new Chart(document.getElementById('chart-daily-revenue'), {
             type: 'line',
             data: {
@@ -56,6 +68,11 @@
             },
         });
 
+    } catch (error) {
+        console.error('Falha no grafico de faturamento diario:', error);
+    }
+
+    try {
         new Chart(document.getElementById('chart-payment-methods'), {
             type: 'bar',
             data: {
@@ -69,6 +86,11 @@
             options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } },
         });
 
+    } catch (error) {
+        console.error('Falha no grafico de pedidos por forma de pagamento:', error);
+    }
+
+    try {
         new Chart(document.getElementById('chart-payment-totals'), {
             type: 'doughnut',
             data: {
@@ -82,6 +104,11 @@
             options: { responsive: true, maintainAspectRatio: false },
         });
 
+    } catch (error) {
+        console.error('Falha no grafico de valor por forma de pagamento:', error);
+    }
+
+    try {
         new Chart(document.getElementById('chart-status'), {
             type: 'pie',
             data: {
@@ -98,7 +125,6 @@
             options: { responsive: true, maintainAspectRatio: false },
         });
     } catch (error) {
-        console.error('Falha ao montar os graficos:', error);
-        showChartError('Nao foi possivel montar os graficos. Atualize a pagina (Ctrl+F5).');
+        console.error('Falha no grafico de status:', error);
     }
 })();

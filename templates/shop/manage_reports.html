@@ -59,7 +59,7 @@
             </article>
         </section>
 
-        <section class="section-card" style="margin-top: 14px;">
+        <section class="section-card report-delivered-compact" style="margin-top: 14px;">
             <p class="panel-subtitle">Relação de pedidos entregues</p>
             <div class="panel-list">
                 {% for order in delivered_orders %}
@@ -83,26 +83,6 @@
                     </article>
                 {% empty %}
                     <p>Nenhum pedido entregue.</p>
-                {% endfor %}
-            </div>
-        </section>
-
-        <section class="section-card" style="margin-top: 14px;">
-            <p class="panel-subtitle">Atenção: entregues e não pagos</p>
-            <div class="panel-list panel-list-inactive">
-                {% for order in delivered_unpaid_orders %}
-                    <article class="panel-row panel-row-inactive">
-                        <div>
-                            <strong>Pedido #{{ order.id }}</strong>
-                            <div class="cart-meta">Cliente: {{ order.first_name }} {{ order.last_name }}</div>
-                            <div class="cart-meta">Telefone: {{ order.whatsapp }}</div>
-                            <div class="cart-meta">Pagamento: {{ order.get_payment_method_display }}</div>
-                            <div class="cart-meta">Total: R$ {{ order.total }}</div>
-                            <div class="cart-meta">Entrega: {% if order.delivered_at %}{{ order.delivered_at|date:"d/m/Y H:i" }}{% else %}-{% endif %}</div>
-                        </div>
-                    </article>
-                {% empty %}
-                    <p>Ótimo: não há pedidos entregues sem pagamento.</p>
                 {% endfor %}
             </div>
         </section>
