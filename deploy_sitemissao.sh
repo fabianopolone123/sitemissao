@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-umask 027
+umask 022
 
 # Deploy completo para VPS (SITEMISSAO):
 # - puxa a ultima versao do git
@@ -28,6 +28,7 @@ REMOTE_NAME="${REMOTE_NAME:-origin}"
 BRANCH_NAME="${BRANCH_NAME:-main}"
 BACKUP_DIR="${BACKUP_DIR:-/var/www/sitemissao/backup}"
 HEALTHCHECK_URL="${HEALTHCHECK_URL:-http://127.0.0.1/}"
+HEALTHCHECK_HOST="${HEALTHCHECK_HOST:-missaoandrewsc.com.br}"
 LOCK_FILE="${LOCK_FILE:-/tmp/sitemissao_deploy.lock}"
 KEEP_BACKUPS="${KEEP_BACKUPS:-15}"
 SQLITE_PATH="${SQLITE_PATH:-/var/www/sitemissao/db.sqlite3}"
@@ -55,6 +56,10 @@ require_cmd() {
   command -v "$1" >/dev/null 2>&1 || die "Comando obrigatorio nao encontrado: $1"
 }
 
+healthcheck() {
+  curl -fsS --max-time 10 "$HEALTHCHECK_URL" -H "Host: $HEALTHCHECK_HOST" >/dev/null 2>&1
+}
+
 rollback() {
   local exit_code=$?
   if [[ "$ROLLBACK_READY" -ne 1 ]]; then
@@ -79,7 +84,7 @@ rollback() {
   systemctl restart "$SERVICE_NAME" >/dev/null 2>&1
   systemctl reload "$NGINX_SERVICE" >/dev/null 2>&1
 
-  if curl -fsS --max-time 10 "$HEALTHCHECK_URL" >/dev/null 2>&1; then
+  if healthcheck; then
     log "Rollback concluido e aplicacao voltou a responder."
   else
     log "Rollback executado, mas healthcheck ainda falhou. Verifique os logs."
@@ -131,6 +136,18 @@ git -C "$APP_DIR" fetch --prune "$REMOTE_NAME"
 TARGET_COMMIT="$(git -C "$APP_DIR" rev-parse "$REMOTE_NAME/$BRANCH_NAME")"
 git -C "$APP_DIR" reset --hard "$TARGET_COMMIT"
 
+log "Ajustando permissoes do projeto..."
+chown -R www-data:www-data "$APP_DIR"
+find "$APP_DIR" -path "$VENV_DIR" -prune -o -type d -exec chmod 755 {} \;
+find "$APP_DIR" -path "$VENV_DIR" -prune -o -type f -exec chmod 644 {} \;
+chmod +x "$MANAGE_PY" "$APP_DIR/deploy_sitemissao.sh"
+chmod -R +x "$VENV_DIR/bin"
+
+if [[ -d "$APP_DIR/media" ]]; then
+  find "$APP_DIR/media" -type d -exec chmod 775 {} \;
+  find "$APP_DIR/media" -type f -exec chmod 664 {} \;
+fi
+
 log "Instalando/atualizando dependencias..."
 "$PIP_BIN" install -r "$REQ_FILE"
 
@@ -146,6 +163,7 @@ log "Coletando arquivos estaticos..."
 log "Ajustando dono do SQLite para o servico..."
 if [[ -f "$SQLITE_PATH" ]]; then
   chown www-data:www-data "$SQLITE_PATH" || true
+  chmod 664 "$SQLITE_PATH" || true
 fi
 
 log "Reiniciando servicos..."
@@ -155,9 +173,9 @@ systemctl reload "$NGINX_SERVICE"
 log "Aguardando aplicacao subir..."
 sleep 2
 
-log "Executando healthcheck em $HEALTHCHECK_URL"
+log "Executando healthcheck em $HEALTHCHECK_URL com Host=$HEALTHCHECK_HOST"
 for attempt in 1 2 3 4 5; do
-  if curl -fsS --max-time 10 "$HEALTHCHECK_URL" >/dev/null 2>&1; then
+  if healthcheck; then
     log "Healthcheck OK."
     break
   fi
