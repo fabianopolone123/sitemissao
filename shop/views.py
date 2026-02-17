@@ -9,6 +9,7 @@ import qrcode
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.models import User
 from django.utils import timezone
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -300,6 +301,7 @@ def manage_products_page(request):
     editing_product = None
     editing_variants_text = ''
     orders = Order.objects.all().order_by('-created_at')
+    users = User.objects.all().order_by('username')
     if edit_id:
         editing_product = get_object_or_404(Product, id=edit_id)
         editing_variants_text = '\n'.join(
@@ -317,6 +319,7 @@ def manage_products_page(request):
             'editing_product': editing_product,
             'editing_variants_text': editing_variants_text,
             'orders': orders,
+            'users': users,
         },
     )
 
@@ -368,6 +371,34 @@ def manage_order_payment_page(request, order_id):
     else:
         messages.error(request, 'Ação inválida para status de pagamento.')
 
+    return redirect('manage_products_page')
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_POST
+def manage_users_create_page(request):
+    username = request.POST.get('username', '').strip()
+    password = request.POST.get('password', '').strip()
+    password_confirm = request.POST.get('password_confirm', '').strip()
+    is_staff = request.POST.get('is_staff', '').strip().lower() in {'1', 'true', 'on', 'yes'}
+
+    if not username or not password:
+        messages.error(request, 'Preencha usuário e senha para criar o login.')
+        return redirect('manage_products_page')
+
+    if password != password_confirm:
+        messages.error(request, 'As senhas não conferem.')
+        return redirect('manage_products_page')
+
+    if User.objects.filter(username=username).exists():
+        messages.error(request, 'Este nome de usuário já existe.')
+        return redirect('manage_products_page')
+
+    user = User.objects.create_user(username=username, password=password)
+    user.is_staff = is_staff
+    user.save(update_fields=['is_staff'])
+    messages.success(request, f'Usuário "{username}" criado com sucesso.')
     return redirect('manage_products_page')
 
 

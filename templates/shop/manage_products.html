@@ -19,6 +19,12 @@
     </header>
 
     <main class="manage-page">
+        <nav class="manage-nav">
+            <a class="secondary-button link-button" href="#secao-produtos">Produtos</a>
+            <a class="secondary-button link-button" href="#secao-pedidos">Pedidos</a>
+            <a class="secondary-button link-button" href="#secao-usuarios">Usuários</a>
+        </nav>
+
         {% if messages %}
             <section class="flash-list">
                 {% for message in messages %}
@@ -27,7 +33,7 @@
             </section>
         {% endif %}
 
-        <section class="panel-grid">
+        <section id="secao-produtos" class="panel-grid section-card">
             <div>
                 <p class="panel-subtitle">Produtos ativos ({{ active_products|length }})</p>
                 <div class="panel-list">
@@ -112,7 +118,7 @@
             </div>
         </section>
 
-        <section class="orders-section">
+        <section id="secao-pedidos" class="orders-section section-card">
             <h2>Pedidos recebidos</h2>
             <div class="orders-list">
                 {% for order in orders %}
@@ -150,6 +156,44 @@
                     </article>
                 {% empty %}
                     <p>Nenhum pedido encontrado.</p>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section id="secao-usuarios" class="orders-section section-card">
+            <h2>Usuários de acesso</h2>
+            <p class="cart-meta">Cadastre aqui novos logins para acessar este painel.</p>
+
+            <form class="checkout-form user-create-form" method="post" action="{% url 'manage_users_create_page' %}">
+                {% csrf_token %}
+                <input type="text" name="username" placeholder="Usuário" required>
+                <input type="password" name="password" placeholder="Senha" required>
+                <input type="password" name="password_confirm" placeholder="Confirmar senha" required>
+                <label class="checkbox-line">
+                    <input type="checkbox" name="is_staff">
+                    Marcar também como membro da equipe (staff)
+                </label>
+                <button class="add-btn" type="submit">Criar login</button>
+            </form>
+
+            <div class="users-list">
+                {% for user_item in users %}
+                    <article class="user-card">
+                        <div class="order-head">
+                            <strong>{{ user_item.username }}</strong>
+                            {% if user_item.is_staff %}
+                                <span class="status-chip status-chip-active">Staff</span>
+                            {% else %}
+                                <span class="status-chip status-chip-inactive">Comum</span>
+                            {% endif %}
+                        </div>
+                        <div class="order-meta">
+                            <div><strong>Status:</strong> {% if user_item.is_active %}Ativo{% else %}Inativo{% endif %}</div>
+                            <div><strong>Último login:</strong> {% if user_item.last_login %}{{ user_item.last_login|date:"d/m/Y H:i" }}{% else %}Nunca{% endif %}</div>
+                        </div>
+                    </article>
+                {% empty %}
+                    <p>Nenhum usuário encontrado.</p>
                 {% endfor %}
             </div>
         </section>
