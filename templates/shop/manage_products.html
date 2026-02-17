@@ -29,14 +29,14 @@
 
         <section class="panel-grid">
             <div>
-                <p class="panel-subtitle">Produtos atuais</p>
+                <p class="panel-subtitle">Produtos ativos ({{ active_products|length }})</p>
                 <div class="panel-list">
-                    {% for product in products %}
-                        <article class="panel-row">
+                    {% for product in active_products %}
+                        <article class="panel-row panel-row-active">
                             <img src="{{ product.image_source }}" alt="{{ product.name }}">
                             <div>
                                 <strong>{{ product.name }}</strong>
-                                <div class="cart-meta">R$ {{ product.price }} | {% if product.active %}Ativo{% else %}Inativo{% endif %}</div>
+                                <div class="cart-meta">R$ {{ product.price }} <span class="status-chip status-chip-active">Ativo</span></div>
                                 <div class="panel-row-actions">
                                     <a class="secondary-button link-button" href="{% url 'manage_products_page' %}?edit={{ product.id }}">Editar</a>
                                     <form method="post" action="{% url 'manage_products_delete_page' product.id %}" onsubmit="return confirm('Deseja remover este produto?');">
@@ -47,7 +47,29 @@
                             </div>
                         </article>
                     {% empty %}
-                        <p>Nenhum produto cadastrado.</p>
+                        <p>Nenhum produto ativo.</p>
+                    {% endfor %}
+                </div>
+
+                <p class="panel-subtitle panel-subtitle-muted">Produtos inativos ({{ inactive_products|length }})</p>
+                <div class="panel-list panel-list-inactive">
+                    {% for product in inactive_products %}
+                        <article class="panel-row panel-row-inactive">
+                            <img src="{{ product.image_source }}" alt="{{ product.name }}">
+                            <div>
+                                <strong>{{ product.name }}</strong>
+                                <div class="cart-meta">R$ {{ product.price }} <span class="status-chip status-chip-inactive">Inativo</span></div>
+                                <div class="panel-row-actions">
+                                    <a class="secondary-button link-button" href="{% url 'manage_products_page' %}?edit={{ product.id }}">Editar</a>
+                                    <form method="post" action="{% url 'manage_products_delete_page' product.id %}" onsubmit="return confirm('Deseja remover este produto?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="danger-btn">Remover</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </article>
+                    {% empty %}
+                        <p>Nenhum produto inativo.</p>
                     {% endfor %}
                 </div>
             </div>

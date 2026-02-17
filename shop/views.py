@@ -132,13 +132,11 @@ def _build_qr_base64(content):
 def _staff_guard(request):
     if not request.user.is_authenticated:
         return JsonResponse({'error': 'Faça login primeiro.'}, status=401)
-    if not request.user.is_staff:
-        return JsonResponse({'error': 'Acesso permitido apenas para administradores.'}, status=403)
     return None
 
 
-def _is_staff(user):
-    return user.is_authenticated and user.is_staff
+def _can_manage(user):
+    return user.is_authenticated
 
 
 def _save_product_from_request(request, product=None):
@@ -217,10 +215,12 @@ def auth_logout(request):
 
 
 @login_required
-@user_passes_test(_is_staff)
+@user_passes_test(_can_manage)
 @require_GET
 def manage_products_page(request):
     products = Product.objects.all().order_by('name')
+    active_products = products.filter(active=True)
+    inactive_products = products.filter(active=False)
     edit_id = request.GET.get('edit')
     editing_product = None
     if edit_id:
@@ -231,13 +231,15 @@ def manage_products_page(request):
         'shop/manage_products.html',
         {
             'products': products,
+            'active_products': active_products,
+            'inactive_products': inactive_products,
             'editing_product': editing_product,
         },
     )
 
 
 @login_required
-@user_passes_test(_is_staff)
+@user_passes_test(_can_manage)
 @require_POST
 def manage_products_save_page(request):
     product_id = request.POST.get('product_id', '').strip()
@@ -254,7 +256,7 @@ def manage_products_save_page(request):
 
 
 @login_required
-@user_passes_test(_is_staff)
+@user_passes_test(_can_manage)
 @require_POST
 def manage_products_delete_page(request, product_id):
     product = get_object_or_404(Product, id=product_id)

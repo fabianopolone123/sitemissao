@@ -14,7 +14,7 @@
     data-cart-update-template="{% url 'cart_update' 0 %}"
     data-checkout-finalize-url="{% url 'checkout_finalize' %}"
     data-auth-login-url="{% url 'auth_login' %}"
-    data-user-staff="{{ request.user.is_staff|yesno:'true,false' }}"
+    data-user-authenticated="{{ request.user.is_authenticated|yesno:'true,false' }}"
 >
     <header class="hero">
         <div class="hero-copy">
@@ -23,7 +23,7 @@
             <p class="subtitle">Cada item vendido ajuda a levantar recursos para a Missão Andrews, permitindo alcançar mais pessoas, oferecer apoio com remédios, cestas básicas e outras necessidades, além de levar o amor de Jesus a mais comunidades.</p>
             <div class="mobile-actions">
                 <button id="open-login-mobile" class="secondary-button" type="button">Login</button>
-                {% if request.user.is_staff %}
+                {% if request.user.is_authenticated %}
                     <a id="open-panel-mobile" class="secondary-button link-button" href="{% url 'manage_products_page' %}">Painel</a>
                 {% endif %}
                 <button id="open-cart-mobile" class="cart-button" type="button" data-open-cart>
@@ -34,7 +34,7 @@
 
         <div class="header-actions">
             <button id="open-login-desktop" class="secondary-button" type="button">Login</button>
-            {% if request.user.is_staff %}
+            {% if request.user.is_authenticated %}
                 <a id="open-panel-desktop" class="secondary-button link-button" href="{% url 'manage_products_page' %}">Painel produtos</a>
             {% endif %}
             <button id="open-cart-desktop" class="cart-button" type="button" data-open-cart>

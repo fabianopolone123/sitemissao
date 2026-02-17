@@ -417,6 +417,11 @@ h1 {
     font-weight: 700;
 }
 
+.panel-subtitle-muted {
+    margin-top: 12px;
+    color: var(--muted);
+}
+
 .panel-list {
     border: 1px solid #ebe6de;
     border-radius: 12px;
@@ -432,6 +437,16 @@ h1 {
     gap: 10px;
     padding: 8px;
     border-bottom: 1px solid #ece8df;
+    border-left: 4px solid transparent;
+}
+
+.panel-row-active {
+    border-left-color: #2f8a5c;
+}
+
+.panel-row-inactive {
+    border-left-color: #9b2c2c;
+    opacity: 0.82;
 }
 
 .panel-row:last-child {
@@ -457,6 +472,30 @@ h1 {
     border-radius: 8px;
     cursor: pointer;
     padding: 4px 8px;
+}
+
+.status-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    margin-left: 6px;
+    font-weight: 700;
+}
+
+.status-chip-active {
+    background: #e3f4e9;
+    color: #216642;
+}
+
+.status-chip-inactive {
+    background: #f9e3e3;
+    color: #8b2323;
+}
+
+.panel-list-inactive {
+    background: #fcf6f6;
 }
 
 .manage-header {
