@@ -7,13 +7,16 @@
     const cartTotal = document.getElementById('cart-total');
     const cartItems = document.getElementById('cart-items');
     const checkoutForm = document.getElementById('checkout-form');
-    const paymentResult = document.getElementById('payment-result');
+    const paymentModal = document.getElementById('payment-modal');
+    const paymentModalOverlay = document.getElementById('payment-modal-overlay');
+    const closePaymentModalButton = document.getElementById('close-payment-modal');
+    const copyPixCodeButton = document.getElementById('copy-pix-code');
     const paymentMessage = document.getElementById('payment-message');
     const paymentQr = document.getElementById('payment-qr');
-    const pixCode = document.getElementById('pix-code');
     const initialCart = JSON.parse(document.getElementById('initial-cart').textContent);
     const cartUpdateTemplate = document.body.dataset.cartUpdateTemplate;
     const checkoutFinalizeUrl = document.body.dataset.checkoutFinalizeUrl;
+    let currentPixCode = '';
 
     function openCart() {
         sidebar.classList.add('open');
@@ -27,6 +30,16 @@
         sidebar.setAttribute('aria-hidden', 'true');
     }
 
+    function openPaymentModal() {
+        paymentModal.hidden = false;
+        paymentModalOverlay.hidden = false;
+    }
+
+    function closePaymentModal() {
+        paymentModal.hidden = true;
+        paymentModalOverlay.hidden = true;
+    }
+
     function csrfToken() {
         const input = document.querySelector('input[name=csrfmiddlewaretoken]');
         return input ? input.value : '';
@@ -37,10 +50,10 @@
     }
 
     function resetPaymentResult() {
-        paymentResult.hidden = true;
         paymentMessage.textContent = '';
         paymentQr.removeAttribute('src');
-        pixCode.value = '';
+        currentPixCode = '';
+        closePaymentModal();
     }
 
     function bindCardQuantityControls() {
@@ -165,19 +178,37 @@
             try {
                 const payload = await post(checkoutFinalizeUrl, body);
                 renderCart(payload.cart);
-                paymentResult.hidden = false;
+                closeCart();
                 paymentMessage.textContent = `${payload.message} Pedido #${payload.order_id}.`;
                 paymentQr.src = `data:image/png;base64,${payload.qr_code_base64}`;
-                pixCode.value = payload.pix_code;
+                currentPixCode = payload.pix_code;
+                openPaymentModal();
             } catch (error) {
                 showError(error.message);
             }
         });
     }
 
+    async function copyPixCode() {
+        if (!currentPixCode) {
+            showError('Código Pix indisponível.');
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(currentPixCode);
+            window.alert('Código Pix copiado com sucesso.');
+        } catch (error) {
+            showError('Não foi possível copiar o código Pix.');
+        }
+    }
+
     openCartButton.addEventListener('click', openCart);
     closeCartButton.addEventListener('click', closeCart);
     overlay.addEventListener('click', closeCart);
+    closePaymentModalButton.addEventListener('click', closePaymentModal);
+    paymentModalOverlay.addEventListener('click', closePaymentModal);
+    copyPixCodeButton.addEventListener('click', copyPixCode);
 
     bindCardQuantityControls();
     bindAddToCartForms();

@@ -67,14 +67,17 @@
                 </select>
                 <button class="add-btn" type="submit">Finalizar pedido</button>
             </form>
-            <div id="payment-result" class="payment-result" hidden>
-                <p id="payment-message"></p>
-                <img id="payment-qr" alt="QR Code Pix">
-                <label for="pix-code">Pix Copia e Cola</label>
-                <textarea id="pix-code" readonly></textarea>
-            </div>
         </div>
     </aside>
+
+    <div id="payment-modal-overlay" class="payment-modal-overlay" hidden></div>
+    <section id="payment-modal" class="payment-modal" hidden>
+        <button id="close-payment-modal" class="payment-close-btn" type="button">X</button>
+        <h3>Pagamento Pix</h3>
+        <p id="payment-message"></p>
+        <img id="payment-qr" alt="QR Code Pix">
+        <button id="copy-pix-code" class="add-btn" type="button">Copiar código Pix</button>
+    </section>
 
     {{ cart|json_script:"initial-cart" }}
     <script src="{% static 'shop/app.js' %}"></script>

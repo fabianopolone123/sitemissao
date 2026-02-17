@@ -279,29 +279,53 @@ h1 {
     font: inherit;
 }
 
-.payment-result {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid #ece8e0;
+.payment-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(16, 22, 19, 0.45);
+    z-index: 60;
 }
 
-.payment-result p {
-    margin: 0 0 10px;
+.payment-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(92vw, 420px);
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
+    padding: 18px;
+    z-index: 70;
+}
+
+.payment-modal h3 {
+    margin: 0 0 8px;
+    text-align: center;
+}
+
+.payment-modal p {
+    margin: 0 0 12px;
     color: var(--primary-strong);
-    font-weight: 600;
+    text-align: center;
 }
 
-.payment-result img {
-    width: min(220px, 100%);
+.payment-modal img {
+    width: min(250px, 100%);
     display: block;
-    margin: 0 auto 10px;
+    margin: 0 auto 14px;
     border: 1px solid #ece8e0;
     border-radius: 10px;
 }
 
-#pix-code {
-    min-height: 90px;
-    resize: vertical;
+.payment-close-btn {
+    border: none;
+    background: transparent;
+    font-weight: 700;
+    cursor: pointer;
+    position: absolute;
+    right: 12px;
+    top: 10px;
 }
 
 @media (max-width: 640px) {
