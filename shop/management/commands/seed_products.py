@@ -36,7 +36,7 @@ class Command(BaseCommand):
                 'description': '1 pastel queijo, tomate e oregano + 1 guarana.',
                 'cause': 'Cantina Missionaria',
                 'price': '15.00',
-                'image_url': 'https://images.unsplash.com/photo-1622480916113-f2f5b8f4e5cb?auto=format&fit=crop&w=900&q=80',
+                'image_url': 'https://images.unsplash.com/photo-1624517452488-04869289c4ca?auto=format&fit=crop&w=900&q=80',
             },
             {
                 'name': 'Combo Pastel QMP + Suco',
