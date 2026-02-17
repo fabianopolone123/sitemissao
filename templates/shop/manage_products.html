@@ -22,6 +22,7 @@
         <nav class="manage-nav">
             <button type="button" class="secondary-button manage-tab-btn is-active" data-target="secao-produtos">Produtos</button>
             <button type="button" class="secondary-button manage-tab-btn" data-target="secao-pedidos">Pedidos</button>
+            <button type="button" class="secondary-button manage-tab-btn" data-target="secao-custos">Custos</button>
             <button type="button" class="secondary-button manage-tab-btn" data-target="secao-whatsapp">WhatsApp</button>
             <button type="button" class="secondary-button manage-tab-btn" data-target="secao-usuarios">Usuários</button>
             <a class="secondary-button link-button" href="{% url 'manage_sales_page' %}">Vender</a>
@@ -172,6 +173,42 @@
                     </article>
                 {% empty %}
                     <p>Nenhum pedido encontrado.</p>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section id="secao-custos" class="orders-section section-card manage-section">
+            <h2>Cadastro de custos</h2>
+            <p class="cart-meta">Total de custos cadastrados: <strong>R$ {{ total_costs|floatformat:2 }}</strong></p>
+
+            <form class="checkout-form user-create-form" method="post" action="{% url 'manage_costs_create_page' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="text" name="name" placeholder="Nome do custo" required>
+                <input type="text" name="amount" placeholder="Valor (ex: 25.90)" required>
+                <input type="file" name="receipt_file" accept="image/*">
+                <button class="add-btn" type="submit">Cadastrar custo</button>
+            </form>
+
+            <div class="panel-list">
+                {% for cost in costs %}
+                    <article class="panel-row">
+                        <div>
+                            <strong>{{ cost.name }}</strong>
+                            <div class="cart-meta">Valor: R$ {{ cost.amount|floatformat:2 }}</div>
+                            <div class="cart-meta">Data: {{ cost.created_at|date:"d/m/Y H:i" }}</div>
+                            {% if cost.receipt_file %}
+                                <div class="cart-meta">
+                                    <a class="secondary-button link-button" href="{{ cost.receipt_file.url }}" target="_blank">Ver comprovante</a>
+                                </div>
+                            {% endif %}
+                            <form method="post" action="{% url 'manage_costs_delete_page' cost.id %}" onsubmit="return confirm('Deseja remover este custo?');" style="margin-top: 6px;">
+                                {% csrf_token %}
+                                <button type="submit" class="danger-btn">Remover</button>
+                            </form>
+                        </div>
+                    </article>
+                {% empty %}
+                    <p>Nenhum custo cadastrado.</p>
                 {% endfor %}
             </div>
         </section>

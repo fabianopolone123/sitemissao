@@ -35,6 +35,14 @@
                 <strong>R$ {{ total_revenue|floatformat:2 }}</strong>
             </article>
             <article class="report-card">
+                <div class="cart-meta">Custos</div>
+                <strong>R$ {{ total_costs|floatformat:2 }}</strong>
+            </article>
+            <article class="report-card">
+                <div class="cart-meta">Lucro</div>
+                <strong>R$ {{ net_profit|floatformat:2 }}</strong>
+            </article>
+            <article class="report-card">
                 <div class="cart-meta">Ticket médio</div>
                 <strong>R$ {{ average_ticket|floatformat:2 }}</strong>
             </article>

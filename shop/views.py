@@ -20,7 +20,7 @@ from django.utils.crypto import constant_time_compare
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
-from .models import Order, Product, ProductVariant, WhatsAppRecipient
+from .models import CostEntry, Order, Product, ProductVariant, WhatsAppRecipient
 
 
 def _get_cart(session):
@@ -605,6 +605,8 @@ def manage_products_page(request):
     editing_product = None
     editing_variants_text = ''
     orders = Order.objects.all().order_by('-created_at')
+    costs = CostEntry.objects.all().order_by('-created_at')[:120]
+    total_costs = CostEntry.objects.aggregate(total=Sum('amount')).get('total') or Decimal('0.00')
     whatsapp_recipients = WhatsAppRecipient.objects.all().order_by('name')
     users = User.objects.all().order_by('username')
     if edit_id:
@@ -624,6 +626,8 @@ def manage_products_page(request):
             'editing_product': editing_product,
             'editing_variants_text': editing_variants_text,
             'orders': orders,
+            'costs': costs,
+            'total_costs': total_costs,
             'whatsapp_recipients': whatsapp_recipients,
             'users': users,
         },
@@ -653,9 +657,11 @@ def manage_reports_page(request):
     orders = Order.objects.all()
     paid_orders = orders.filter(is_paid=True)
     delivered_orders = orders.filter(is_delivered=True).order_by('-delivered_at', '-id')[:80]
+    total_costs = CostEntry.objects.aggregate(total=Sum('amount')).get('total') or Decimal('0.00')
     total_orders = orders.count()
     total_paid_orders = paid_orders.count()
     total_revenue = paid_orders.aggregate(total=Sum('total')).get('total') or Decimal('0.00')
+    net_profit = total_revenue - total_costs
     average_ticket = paid_orders.aggregate(avg=Avg('total')).get('avg') or Decimal('0.00')
 
     daily_rows = (
@@ -703,6 +709,8 @@ def manage_reports_page(request):
             'total_orders': total_orders,
             'total_paid_orders': total_paid_orders,
             'total_revenue': total_revenue,
+            'total_costs': total_costs,
+            'net_profit': net_profit,
             'average_ticket': average_ticket,
             'chart_daily_labels': chart_daily_labels,
             'chart_daily_values': chart_daily_values,
@@ -904,6 +912,42 @@ def manage_users_create_page(request):
     user.is_staff = is_staff
     user.save(update_fields=['is_staff'])
     messages.success(request, f'UsuÃ¡rio "{username}" criado com sucesso.')
+    return redirect('manage_products_page')
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_POST
+def manage_costs_create_page(request):
+    name = request.POST.get('name', '').strip()
+    amount_text = request.POST.get('amount', '').strip().replace(',', '.')
+    receipt_file = request.FILES.get('receipt_file')
+
+    if not name or not amount_text:
+        messages.error(request, 'Preencha nome e valor do custo.')
+        return redirect('manage_products_page')
+
+    try:
+        amount = Decimal(amount_text)
+    except (InvalidOperation, ValueError):
+        messages.error(request, 'Valor de custo invalido.')
+        return redirect('manage_products_page')
+
+    cost = CostEntry(name=name, amount=amount)
+    if receipt_file:
+        cost.receipt_file = receipt_file
+    cost.save()
+    messages.success(request, 'Custo cadastrado com sucesso.')
+    return redirect('manage_products_page')
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_POST
+def manage_costs_delete_page(request, cost_id):
+    cost = get_object_or_404(CostEntry, id=cost_id)
+    cost.delete()
+    messages.success(request, 'Custo removido com sucesso.')
     return redirect('manage_products_page')
 
 

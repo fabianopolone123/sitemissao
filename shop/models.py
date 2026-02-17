@@ -87,3 +87,16 @@ class WhatsAppRecipient(models.Model):
 
     def __str__(self) -> str:
         return f'{self.name} ({self.phone})'
+
+
+class CostEntry(models.Model):
+    name = models.CharField(max_length=160)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    receipt_file = models.ImageField(upload_to='costs/', blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        return f'{self.name} - R$ {self.amount:.2f}'
