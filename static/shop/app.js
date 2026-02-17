@@ -1,9 +1,9 @@
 ﻿(function () {
     const sidebar = document.getElementById('cart-sidebar');
     const overlay = document.getElementById('cart-overlay');
-    const openCartButton = document.getElementById('open-cart');
+    const openCartButtons = document.querySelectorAll('#open-cart-mobile, #open-cart-desktop');
     const closeCartButton = document.getElementById('close-cart');
-    const cartCount = document.getElementById('cart-count');
+    const cartCountBadges = document.querySelectorAll('.cart-count-badge');
     const cartTotal = document.getElementById('cart-total');
     const cartItems = document.getElementById('cart-items');
     const checkoutForm = document.getElementById('checkout-form');
@@ -70,7 +70,9 @@
     }
 
     function renderCart(cart) {
-        cartCount.textContent = cart.count;
+        cartCountBadges.forEach((badge) => {
+            badge.textContent = cart.count;
+        });
         cartTotal.textContent = `R$ ${cart.total}`;
 
         if (!cart.items.length) {
@@ -203,7 +205,9 @@
         }
     }
 
-    openCartButton.addEventListener('click', openCart);
+    openCartButtons.forEach((button) => {
+        button.addEventListener('click', openCart);
+    });
     closeCartButton.addEventListener('click', closeCart);
     overlay.addEventListener('click', closeCart);
     closePaymentModalButton.addEventListener('click', closePaymentModal);

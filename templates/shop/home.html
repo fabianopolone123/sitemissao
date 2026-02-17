@@ -12,14 +12,20 @@
 </head>
 <body data-cart-update-template="{% url 'cart_update' 0 %}" data-checkout-finalize-url="{% url 'checkout_finalize' %}">
     <header class="hero">
-        <div>
+        <div class="hero-copy">
             <p class="tag">Loja Missão Andrews São Carlos</p>
             <h1>Juntos levando amor, esperança e a mensagem de Jesus</h1>
             <p class="subtitle">Cada item vendido ajuda a levantar recursos para a Missão Andrews, permitindo alcançar mais pessoas, oferecer apoio com remédios, cestas básicas e outras necessidades, além de levar o amor de Jesus a mais comunidades.</p>
+            <button id="open-cart-mobile" class="cart-button mobile-cart-button" type="button">
+                Carrinho <span class="cart-count-badge">{{ cart.count }}</span>
+            </button>
         </div>
-        <button id="open-cart" class="cart-button" type="button">
-            Carrinho <span id="cart-count">{{ cart.count }}</span>
-        </button>
+        <div class="hero-media">
+            <img src="{% static 'shop/img/missao-andrews-cabecalho.jpg' %}" alt="Missão Andrews">
+            <button id="open-cart-desktop" class="cart-button desktop-cart-button" type="button">
+                Carrinho <span class="cart-count-badge">{{ cart.count }}</span>
+            </button>
+        </div>
     </header>
 
     <main class="products-grid">
