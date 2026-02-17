@@ -60,7 +60,8 @@
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false,
+                maintainAspectRatio: true,
+                aspectRatio: 2.2,
                 scales: {
                     y: { beginAtZero: true },
                     y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } },
@@ -83,7 +84,7 @@
                     backgroundColor: ['#19543d', '#d9a441', '#366f8a', '#a04f4f'],
                 }],
             },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } },
+            options: { responsive: true, maintainAspectRatio: true, aspectRatio: 2.2, scales: { y: { beginAtZero: true } } },
         });
 
     } catch (error) {
@@ -101,7 +102,7 @@
                     backgroundColor: ['#19543d', '#d9a441', '#366f8a', '#a04f4f'],
                 }],
             },
-            options: { responsive: true, maintainAspectRatio: false },
+            options: { responsive: true, maintainAspectRatio: true, aspectRatio: 2.2 },
         });
 
     } catch (error) {
@@ -122,7 +123,7 @@
                     backgroundColor: ['#2f8a5c', '#d9a441', '#9b2c2c'],
                 }],
             },
-            options: { responsive: true, maintainAspectRatio: false },
+            options: { responsive: true, maintainAspectRatio: true, aspectRatio: 2.2 },
         });
     } catch (error) {
         console.error('Falha no grafico de status:', error);

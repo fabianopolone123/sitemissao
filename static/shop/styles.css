@@ -573,7 +573,8 @@ h1 {
 
 .report-card canvas {
     width: 100% !important;
-    min-height: 260px;
+    height: 260px !important;
+    max-height: 260px;
 }
 
 .report-delivered-compact .panel-list {
