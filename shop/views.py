@@ -9,6 +9,7 @@ import qrcode
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth import authenticate, login, logout
+from django.utils import timezone
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
@@ -298,6 +299,7 @@ def manage_products_page(request):
     edit_id = request.GET.get('edit')
     editing_product = None
     editing_variants_text = ''
+    orders = Order.objects.all().order_by('-created_at')
     if edit_id:
         editing_product = get_object_or_404(Product, id=edit_id)
         editing_variants_text = '\n'.join(
@@ -314,6 +316,7 @@ def manage_products_page(request):
             'inactive_products': inactive_products,
             'editing_product': editing_product,
             'editing_variants_text': editing_variants_text,
+            'orders': orders,
         },
     )
 
@@ -342,6 +345,29 @@ def manage_products_delete_page(request, product_id):
     product = get_object_or_404(Product, id=product_id)
     product.delete()
     messages.success(request, 'Produto removido com sucesso.')
+    return redirect('manage_products_page')
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_POST
+def manage_order_payment_page(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    action = request.POST.get('action', '').strip().lower()
+
+    if action == 'mark_paid':
+        order.is_paid = True
+        order.paid_at = timezone.now()
+        order.save(update_fields=['is_paid', 'paid_at'])
+        messages.success(request, f'Pedido #{order.id} marcado como pago.')
+    elif action == 'mark_unpaid':
+        order.is_paid = False
+        order.paid_at = None
+        order.save(update_fields=['is_paid', 'paid_at'])
+        messages.success(request, f'Pedido #{order.id} marcado como não pago.')
+    else:
+        messages.error(request, 'Ação inválida para status de pagamento.')
+
     return redirect('manage_products_page')
 
 

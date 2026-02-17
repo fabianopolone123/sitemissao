@@ -543,6 +543,59 @@ h1 {
     margin: 0 0 8px;
 }
 
+.orders-section {
+    margin-top: 20px;
+}
+
+.orders-section h2 {
+    margin: 0 0 10px;
+    font-size: 1.25rem;
+}
+
+.orders-list {
+    display: grid;
+    gap: 12px;
+}
+
+.order-card {
+    border-radius: 12px;
+    padding: 12px;
+    border: 1px solid #e3ddd2;
+    background: #fffdf9;
+}
+
+.order-card-paid {
+    border-left: 5px solid #2f8a5c;
+}
+
+.order-card-unpaid {
+    border-left: 5px solid #9b2c2c;
+}
+
+.order-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.order-meta {
+    display: grid;
+    gap: 4px;
+    margin-bottom: 8px;
+    color: #3d3730;
+}
+
+.order-items ul {
+    margin: 6px 0 0;
+    padding-left: 18px;
+}
+
+.order-actions {
+    margin-top: 10px;
+}
+
 @media (max-width: 900px) {
     .panel-grid {
         grid-template-columns: 1fr;

@@ -111,6 +111,48 @@
                 </form>
             </div>
         </section>
+
+        <section class="orders-section">
+            <h2>Pedidos recebidos</h2>
+            <div class="orders-list">
+                {% for order in orders %}
+                    <article class="order-card {% if order.is_paid %}order-card-paid{% else %}order-card-unpaid{% endif %}">
+                        <div class="order-head">
+                            <strong>Pedido #{{ order.id }}</strong>
+                            <span class="status-chip {% if order.is_paid %}status-chip-active{% else %}status-chip-inactive{% endif %}">
+                                {% if order.is_paid %}Pago{% else %}Não pago{% endif %}
+                            </span>
+                        </div>
+                        <div class="order-meta">
+                            <div><strong>Cliente:</strong> {{ order.first_name }} {{ order.last_name }}</div>
+                            <div><strong>Telefone:</strong> {{ order.whatsapp }}</div>
+                            <div><strong>Total:</strong> R$ {{ order.total }}</div>
+                            <div><strong>Data:</strong> {{ order.created_at|date:"d/m/Y H:i" }}</div>
+                        </div>
+                        <div class="order-items">
+                            <strong>Itens:</strong>
+                            <ul>
+                                {% for item in order.items_json %}
+                                    <li>{{ item.quantity }}x {{ item.name }} (R$ {{ item.price }}) - subtotal R$ {{ item.subtotal }}</li>
+                                {% empty %}
+                                    <li>Sem itens registrados.</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        <form method="post" action="{% url 'manage_order_payment_page' order.id %}" class="order-actions">
+                            {% csrf_token %}
+                            {% if order.is_paid %}
+                                <button type="submit" name="action" value="mark_unpaid" class="secondary-button">Marcar como não pago</button>
+                            {% else %}
+                                <button type="submit" name="action" value="mark_paid" class="add-btn">Marcar como pago</button>
+                            {% endif %}
+                        </form>
+                    </article>
+                {% empty %}
+                    <p>Nenhum pedido encontrado.</p>
+                {% endfor %}
+            </div>
+        </section>
     </main>
 </body>
 </html>

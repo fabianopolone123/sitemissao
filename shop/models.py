@@ -51,6 +51,8 @@ class Order(models.Model):
     total = models.DecimalField(max_digits=10, decimal_places=2)
     pix_code = models.TextField()
     items_json = models.JSONField(default=list)
+    is_paid = models.BooleanField(default=False)
+    paid_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
