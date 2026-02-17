@@ -20,7 +20,7 @@ from django.utils.crypto import constant_time_compare
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
-from .models import CostEntry, Order, Product, ProductVariant, WhatsAppRecipient
+from .models import AuditLog, CostEntry, Order, Product, ProductVariant, WhatsAppRecipient
 
 
 def _get_cart(session):
@@ -720,6 +720,39 @@ def manage_reports_page(request):
             'chart_payment_totals': chart_payment_totals,
             'status_counter': status_counter,
             'delivered_orders': delivered_orders,
+        },
+    )
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_GET
+def manage_audit_page(request):
+    logs = AuditLog.objects.select_related('user').all()
+
+    method = request.GET.get('method', '').strip().upper()
+    status_group = request.GET.get('status_group', '').strip().lower()
+    q = request.GET.get('q', '').strip()
+
+    if method:
+        logs = logs.filter(method=method)
+    if status_group == 'error':
+        logs = logs.filter(status_code__gte=400)
+    elif status_group == 'ok':
+        logs = logs.filter(status_code__lt=400)
+    if q:
+        logs = logs.filter(path__icontains=q)
+
+    logs = logs[:500]
+
+    return render(
+        request,
+        'shop/manage_audit.html',
+        {
+            'logs': logs,
+            'selected_method': method,
+            'selected_status_group': status_group,
+            'q': q,
         },
     )
 

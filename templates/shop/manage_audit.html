@@ -1,0 +1,76 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auditoria | Missão Andrews</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'shop/styles.css' %}">
+</head>
+<body>
+    <header class="manage-header">
+        <h1>Auditoria do sistema</h1>
+        <div class="manage-header-actions">
+            <a class="secondary-button link-button" href="{% url 'manage_products_page' %}">Voltar ao painel</a>
+        </div>
+    </header>
+
+    <main class="manage-page">
+        <section class="section-card">
+            <form method="get" class="checkout-form" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); align-items: end;">
+                <input type="text" name="q" value="{{ q }}" placeholder="Buscar por rota (path)">
+                <select name="method">
+                    <option value="">Método (todos)</option>
+                    <option value="GET" {% if selected_method == 'GET' %}selected{% endif %}>GET</option>
+                    <option value="POST" {% if selected_method == 'POST' %}selected{% endif %}>POST</option>
+                    <option value="PUT" {% if selected_method == 'PUT' %}selected{% endif %}>PUT</option>
+                    <option value="PATCH" {% if selected_method == 'PATCH' %}selected{% endif %}>PATCH</option>
+                    <option value="DELETE" {% if selected_method == 'DELETE' %}selected{% endif %}>DELETE</option>
+                </select>
+                <select name="status_group">
+                    <option value="" {% if not selected_status_group %}selected{% endif %}>Status (todos)</option>
+                    <option value="ok" {% if selected_status_group == 'ok' %}selected{% endif %}>OK (&lt;400)</option>
+                    <option value="error" {% if selected_status_group == 'error' %}selected{% endif %}>Erro (&gt;=400)</option>
+                </select>
+                <button class="add-btn" type="submit">Filtrar</button>
+            </form>
+        </section>
+
+        <section class="section-card" style="margin-top: 12px;">
+            <p class="panel-subtitle">Últimos logs (máx 500)</p>
+            <div class="panel-list" style="max-height: 70vh;">
+                {% for log in logs %}
+                    <article class="panel-row {% if log.is_error %}panel-row-inactive{% else %}panel-row-active{% endif %}" style="grid-template-columns: 1fr;">
+                        <div>
+                            <strong>{{ log.method }} {{ log.path }}</strong>
+                            <div class="cart-meta">
+                                {{ log.created_at|date:"d/m/Y H:i:s" }} |
+                                status {{ log.status_code }} |
+                                {{ log.response_ms }}ms |
+                                IP {{ log.ip_address|default:"-" }}
+                            </div>
+                            <div class="cart-meta">
+                                usuário: {% if log.user %}{{ log.user.username }}{% else %}anônimo{% endif %}
+                            </div>
+                            {% if log.query_params %}
+                                <div class="cart-meta">query: {{ log.query_params }}</div>
+                            {% endif %}
+                            {% if log.payload %}
+                                <div class="cart-meta">payload: {{ log.payload }}</div>
+                            {% endif %}
+                            {% if log.user_agent %}
+                                <div class="cart-meta">user-agent: {{ log.user_agent }}</div>
+                            {% endif %}
+                        </div>
+                    </article>
+                {% empty %}
+                    <p>Nenhum log de auditoria encontrado.</p>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
+</body>
+</html>

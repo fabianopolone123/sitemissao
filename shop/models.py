@@ -100,3 +100,23 @@ class CostEntry(models.Model):
 
     def __str__(self) -> str:
         return f'{self.name} - R$ {self.amount:.2f}'
+
+
+class AuditLog(models.Model):
+    user = models.ForeignKey('auth.User', on_delete=models.SET_NULL, blank=True, null=True)
+    method = models.CharField(max_length=10)
+    path = models.CharField(max_length=255)
+    query_params = models.TextField(blank=True)
+    payload = models.TextField(blank=True)
+    status_code = models.IntegerField(default=0)
+    ip_address = models.CharField(max_length=64, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True)
+    response_ms = models.IntegerField(default=0)
+    is_error = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        return f'{self.method} {self.path} [{self.status_code}]'
