@@ -13,7 +13,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
-from .models import Order, Product
+from .models import Order, Product, ProductVariant
 
 
 def _get_cart(session):
@@ -25,6 +25,7 @@ def _get_cart(session):
 
 
 def _product_payload(product):
+    variants = product.variants.filter(active=True)
     return {
         'id': product.id,
         'name': product.name,
@@ -34,28 +35,71 @@ def _product_payload(product):
         'image_url': product.image_url,
         'image_source': product.image_source,
         'active': product.active,
+        'variants': [
+            {
+                'id': variant.id,
+                'name': variant.name,
+                'price': f'{variant.price:.2f}',
+            }
+            for variant in variants
+        ],
     }
 
 
+def _cart_item_key(product_id, variant_id=None):
+    return f'{product_id}:{variant_id or 0}'
+
+
 def _build_cart_payload(cart):
-    product_ids = [int(pid) for pid in cart.keys()]
-    products = Product.objects.filter(id__in=product_ids, active=True)
-    product_map = {str(p.id): p for p in products}
+    product_ids = []
+    variant_ids = []
+    parsed_keys = []
+
+    for item_key in cart.keys():
+        try:
+            pid_text, vid_text = str(item_key).split(':', 1)
+            pid = int(pid_text)
+            vid = int(vid_text)
+            product_ids.append(pid)
+            if vid > 0:
+                variant_ids.append(vid)
+            parsed_keys.append((item_key, pid, vid))
+        except (ValueError, TypeError):
+            continue
+
+    products = Product.objects.filter(id__in=product_ids, active=True).prefetch_related('variants')
+    product_map = {p.id: p for p in products}
+    variant_map = {}
+    if variant_ids:
+        variants = ProductVariant.objects.filter(id__in=variant_ids, active=True)
+        variant_map = {variant.id: variant for variant in variants}
+
     items = []
     total = Decimal('0.00')
 
-    for pid, qty in cart.items():
+    for item_key, pid, vid in parsed_keys:
+        qty = cart.get(item_key, 0)
         product = product_map.get(pid)
         if not product:
             continue
         quantity = int(qty)
-        subtotal = product.price * quantity
+        variant = variant_map.get(vid) if vid > 0 else None
+        if vid > 0 and (not variant or variant.product_id != product.id):
+            continue
+        unit_price = variant.price if variant else product.price
+        subtotal = unit_price * quantity
         total += subtotal
+        item_label = product.name
+        if variant:
+            item_label = f'{product.name} - {variant.name}'
         items.append(
             {
+                'item_key': item_key,
                 'id': product.id,
-                'name': product.name,
-                'price': f'{product.price:.2f}',
+                'variant_id': variant.id if variant else None,
+                'variant_name': variant.name if variant else '',
+                'name': item_label,
+                'price': f'{unit_price:.2f}',
                 'quantity': quantity,
                 'image_url': product.image_source,
                 'subtotal': f'{subtotal:.2f}',
@@ -169,12 +213,42 @@ def _save_product_from_request(request, product=None):
         return None, 'Nome do produto é obrigatório.'
 
     product.save()
+    variants_text = request.POST.get('variants_text', '').strip()
+    parsed_variants = []
+    if variants_text:
+        lines = [line.strip() for line in variants_text.splitlines() if line.strip()]
+        for line in lines:
+            if '|' not in line:
+                return None, 'Formato de variação inválido. Use: nome|preço'
+            variant_name, variant_price_text = [part.strip() for part in line.split('|', 1)]
+            if not variant_name:
+                return None, 'Nome da variação é obrigatório.'
+            try:
+                variant_price = Decimal(variant_price_text.replace(',', '.'))
+            except (InvalidOperation, AttributeError):
+                return None, f'Preço inválido na variação: {variant_name}'
+            parsed_variants.append((variant_name, variant_price))
+
+    product.variants.all().delete()
+    for variant_name, variant_price in parsed_variants:
+        ProductVariant.objects.create(
+            product=product,
+            name=variant_name,
+            price=variant_price,
+            active=True,
+        )
     return product, None
 
 
 @require_GET
 def home(request):
-    products = Product.objects.filter(active=True)
+    products = Product.objects.filter(active=True).prefetch_related('variants')
+    for product in products:
+        product.active_variants = [variant for variant in product.variants.all() if variant.active]
+        if product.active_variants:
+            product.display_price = min(variant.price for variant in product.active_variants)
+        else:
+            product.display_price = product.price
     cart = _get_cart(request.session)
     cart_payload = _build_cart_payload(cart)
     return render(
@@ -218,13 +292,18 @@ def auth_logout(request):
 @user_passes_test(_can_manage)
 @require_GET
 def manage_products_page(request):
-    products = Product.objects.all().order_by('name')
+    products = Product.objects.all().prefetch_related('variants').order_by('name')
     active_products = products.filter(active=True)
     inactive_products = products.filter(active=False)
     edit_id = request.GET.get('edit')
     editing_product = None
+    editing_variants_text = ''
     if edit_id:
         editing_product = get_object_or_404(Product, id=edit_id)
+        editing_variants_text = '\n'.join(
+            f'{variant.name}|{variant.price:.2f}'
+            for variant in editing_product.variants.filter(active=True).order_by('name')
+        )
 
     return render(
         request,
@@ -234,6 +313,7 @@ def manage_products_page(request):
             'active_products': active_products,
             'inactive_products': inactive_products,
             'editing_product': editing_product,
+            'editing_variants_text': editing_variants_text,
         },
     )
 
@@ -304,13 +384,21 @@ def product_manage_delete(request, product_id):
 @require_POST
 def cart_add(request, product_id):
     product = get_object_or_404(Product, id=product_id, active=True)
+    variant_id = request.POST.get('variant_id')
+    variant = None
+    if variant_id:
+        try:
+            variant = ProductVariant.objects.get(id=int(variant_id), product=product, active=True)
+        except (ProductVariant.DoesNotExist, ValueError, TypeError):
+            return JsonResponse({'error': 'Variação inválida para este produto.'}, status=400)
+
     try:
         quantity = int(request.POST.get('quantity', 1))
     except (TypeError, ValueError):
         quantity = 1
     quantity = max(1, quantity)
     cart = _get_cart(request.session)
-    key = str(product.id)
+    key = _cart_item_key(product.id, variant.id if variant else None)
     cart[key] = cart.get(key, 0) + quantity
     request.session.modified = True
     payload = _build_cart_payload(cart)
@@ -320,9 +408,17 @@ def cart_add(request, product_id):
 @require_POST
 def cart_update(request, product_id):
     product = get_object_or_404(Product, id=product_id, active=True)
+    variant_id = request.POST.get('variant_id')
+    variant = None
+    if variant_id:
+        try:
+            variant = ProductVariant.objects.get(id=int(variant_id), product=product, active=True)
+        except (ProductVariant.DoesNotExist, ValueError, TypeError):
+            return JsonResponse({'error': 'Variação inválida para este produto.'}, status=400)
+
     action = request.POST.get('action', 'set')
     cart = _get_cart(request.session)
-    key = str(product.id)
+    key = _cart_item_key(product.id, variant.id if variant else None)
     current = int(cart.get(key, 0))
 
     if action == 'inc':

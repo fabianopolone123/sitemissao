@@ -51,9 +51,18 @@
                     <small>{{ product.cause }}</small>
                     <h2>{{ product.name }}</h2>
                     <p>{{ product.description }}</p>
-                    <strong>R$ {{ product.price }}</strong>
+                    <strong class="product-price" data-base-price="{{ product.price }}">R$ {{ product.display_price }}</strong>
                     <form class="add-form" data-url="{% url 'cart_add' product.id %}">
                         {% csrf_token %}
+                        {% if product.active_variants %}
+                            <select name="variant_id" class="variant-select" required>
+                                {% for variant in product.active_variants %}
+                                    <option value="{{ variant.id }}" data-price="{{ variant.price }}">
+                                        {{ variant.name }} - R$ {{ variant.price }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        {% endif %}
                         <div class="qty-control">
                             <button type="button" class="qty-btn" data-action="minus">-</button>
                             <input type="number" name="quantity" min="1" value="1" class="qty-input">

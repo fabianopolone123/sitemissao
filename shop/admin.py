@@ -1,6 +1,11 @@
 from django.contrib import admin
 
-from .models import Order, Product
+from .models import Order, Product, ProductVariant
+
+
+class ProductVariantInline(admin.TabularInline):
+    model = ProductVariant
+    extra = 1
 
 
 @admin.register(Product)
@@ -8,6 +13,7 @@ class ProductAdmin(admin.ModelAdmin):
     list_display = ('name', 'cause', 'price', 'active', 'created_at')
     list_filter = ('cause', 'active')
     search_fields = ('name', 'description', 'cause')
+    inlines = [ProductVariantInline]
 
 
 @admin.register(Order)

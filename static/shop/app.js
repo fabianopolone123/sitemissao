@@ -112,7 +112,7 @@
         cartItems.innerHTML = cart.items
             .map(
                 (item) => `
-                    <article class="cart-item" data-id="${item.id}">
+                    <article class="cart-item" data-id="${item.id}" data-variant-id="${item.variant_id || ''}">
                         <img src="${item.image_url}" alt="${item.name}">
                         <div>
                             <h4>${item.name}</h4>
@@ -145,13 +145,35 @@
         });
     }
 
+    function bindVariantSelectors() {
+        document.querySelectorAll('.product-card').forEach((card) => {
+            const select = card.querySelector('.variant-select');
+            const priceElement = card.querySelector('.product-price');
+            if (!select || !priceElement) {
+                return;
+            }
+
+            const updatePrice = () => {
+                const selectedOption = select.options[select.selectedIndex];
+                const selectedPrice = selectedOption ? selectedOption.dataset.price : null;
+                const basePrice = priceElement.dataset.basePrice || '0.00';
+                priceElement.textContent = `R$ ${selectedPrice || basePrice}`;
+            };
+
+            select.addEventListener('change', updatePrice);
+            updatePrice();
+        });
+    }
+
     function bindAddToCartForms() {
         document.querySelectorAll('.add-form').forEach((form) => {
             form.addEventListener('submit', async (event) => {
                 event.preventDefault();
                 try {
                     const quantity = form.querySelector('.qty-input').value;
-                    const cart = await post(form.dataset.url, { quantity });
+                    const variantSelect = form.querySelector('.variant-select');
+                    const variantId = variantSelect ? variantSelect.value : '';
+                    const cart = await post(form.dataset.url, { quantity, variant_id: variantId });
                     renderCart(cart);
                     openCart();
                 } catch (error) {
@@ -164,6 +186,7 @@
     function bindCartActions() {
         cartItems.querySelectorAll('.cart-item').forEach((row) => {
             const id = row.dataset.id;
+            const variantId = row.dataset.variantId || '';
             const updateUrl = cartUpdateTemplate.replace('/0/', `/${id}/`);
             row.querySelectorAll('button').forEach((button) => {
                 button.addEventListener('click', async () => {
@@ -172,6 +195,7 @@
                         const cart = await post(updateUrl, {
                             action: action === 'remove' ? 'set' : action,
                             quantity: action === 'remove' ? '0' : '1',
+                            variant_id: variantId,
                         });
                         renderCart(cart);
                     } catch (error) {
@@ -252,6 +276,7 @@
     copyPixCodeButton.addEventListener('click', copyPixCode);
 
     bindCardQuantityControls();
+    bindVariantSelectors();
     bindAddToCartForms();
     bindCheckoutForm();
     bindLoginForm();

@@ -24,6 +24,20 @@ class Product(models.Model):
         return self.image_url
 
 
+class ProductVariant(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variants')
+    name = models.CharField(max_length=120)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self) -> str:
+        return f'{self.product.name} - {self.name}'
+
+
 class Order(models.Model):
     PAYMENT_PIX = 'pix'
     PAYMENT_CHOICES = [

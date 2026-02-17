@@ -197,6 +197,16 @@ h1 {
     margin-bottom: 10px;
 }
 
+.variant-select {
+    width: 100%;
+    border: 1px solid #d7d1c8;
+    border-radius: 10px;
+    padding: 9px 10px;
+    margin-bottom: 8px;
+    background: #fff;
+    font: inherit;
+}
+
 .qty-btn,
 .qty-input {
     border-radius: 12px;
@@ -464,6 +474,7 @@ h1 {
     margin-top: 6px;
     display: flex;
     gap: 6px;
+    align-items: center;
 }
 
 .panel-row-actions button {
@@ -472,6 +483,10 @@ h1 {
     border-radius: 8px;
     cursor: pointer;
     padding: 4px 8px;
+}
+
+.panel-row-actions form {
+    margin: 0;
 }
 
 .status-chip {

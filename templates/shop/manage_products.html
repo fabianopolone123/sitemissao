@@ -37,6 +37,15 @@
                             <div>
                                 <strong>{{ product.name }}</strong>
                                 <div class="cart-meta">R$ {{ product.price }} <span class="status-chip status-chip-active">Ativo</span></div>
+                                {% if product.variants.all %}
+                                    <div class="cart-meta">Variações:
+                                        {% for variant in product.variants.all %}
+                                            {{ variant.name }} (R$ {{ variant.price }}){% if not forloop.last %}, {% endif %}
+                                        {% empty %}
+                                            sem variações
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
                                 <div class="panel-row-actions">
                                     <a class="secondary-button link-button" href="{% url 'manage_products_page' %}?edit={{ product.id }}">Editar</a>
                                     <form method="post" action="{% url 'manage_products_delete_page' product.id %}" onsubmit="return confirm('Deseja remover este produto?');">
@@ -59,6 +68,13 @@
                             <div>
                                 <strong>{{ product.name }}</strong>
                                 <div class="cart-meta">R$ {{ product.price }} <span class="status-chip status-chip-inactive">Inativo</span></div>
+                                <div class="cart-meta">Variações:
+                                    {% for variant in product.variants.all %}
+                                        {{ variant.name }} (R$ {{ variant.price }}){% if not forloop.last %}, {% endif %}
+                                    {% empty %}
+                                        sem variações
+                                    {% endfor %}
+                                </div>
                                 <div class="panel-row-actions">
                                     <a class="secondary-button link-button" href="{% url 'manage_products_page' %}?edit={{ product.id }}">Editar</a>
                                     <form method="post" action="{% url 'manage_products_delete_page' product.id %}" onsubmit="return confirm('Deseja remover este produto?');">
@@ -85,6 +101,7 @@
                     <textarea name="description" rows="3" placeholder="Descrição">{% if editing_product %}{{ editing_product.description }}{% endif %}</textarea>
                     <input type="url" name="image_url" placeholder="URL da foto (opcional)" value="{% if editing_product %}{{ editing_product.image_url }}{% endif %}">
                     <input type="file" name="image_file" accept="image/*">
+                    <textarea name="variants_text" rows="4" placeholder="Variações (uma por linha):&#10;Com suco|15.00&#10;Com guaraná|15.00">{{ editing_variants_text }}</textarea>
                     <label class="checkbox-line">
                         <input type="checkbox" name="active" {% if not editing_product or editing_product.active %}checked{% endif %}>
                         Produto ativo
