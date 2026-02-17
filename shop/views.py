@@ -2,6 +2,8 @@
 import hmac
 import json
 import os
+import random
+import time
 from decimal import Decimal, InvalidOperation
 from urllib import error, request as urllib_request
 
@@ -253,8 +255,30 @@ def _build_order_whatsapp_message(order):
     return '\n'.join(lines)
 
 
+def _wapi_delay_bounds():
+    min_delay = os.getenv('WAPI_QUEUE_MIN_DELAY_SECONDS', '2').strip()
+    max_delay = os.getenv('WAPI_QUEUE_MAX_DELAY_SECONDS', '5').strip()
+    try:
+        minimum = max(0.0, float(min_delay))
+    except ValueError:
+        minimum = 2.0
+    try:
+        maximum = max(0.0, float(max_delay))
+    except ValueError:
+        maximum = 5.0
+    if minimum > maximum:
+        minimum, maximum = maximum, minimum
+    return minimum, maximum
+
+
 def _send_whatsapp_notifications_for_order(order):
-    if order.whatsapp_notified:
+    # Lock idempotente: se outro processo/webhook ja marcou envio, nao envia de novo.
+    updated = Order.objects.filter(id=order.id, whatsapp_notified=False).update(
+        whatsapp_notified=True,
+        whatsapp_notified_at=timezone.now(),
+        whatsapp_notify_error='',
+    )
+    if updated == 0:
         return
 
     phones = set()
@@ -268,24 +292,23 @@ def _send_whatsapp_notifications_for_order(order):
             phones.add(normalized)
 
     if not phones:
-        order.whatsapp_notified = True
-        order.whatsapp_notified_at = timezone.now()
         order.whatsapp_notify_error = 'Nenhum telefone valido para envio.'
-        order.save(update_fields=['whatsapp_notified', 'whatsapp_notified_at', 'whatsapp_notify_error'])
+        order.save(update_fields=['whatsapp_notify_error'])
         return
 
     message = _build_order_whatsapp_message(order)
     errors = []
-    for phone in phones:
+    minimum_delay, maximum_delay = _wapi_delay_bounds()
+    for index, phone in enumerate(sorted(phones)):
+        if index > 0 and maximum_delay > 0:
+            time.sleep(random.uniform(minimum_delay, maximum_delay))
         try:
             _wapi_send_text(phone, message)
         except ValueError as exc:
             errors.append(str(exc))
 
-    order.whatsapp_notified = True
-    order.whatsapp_notified_at = timezone.now()
     order.whatsapp_notify_error = '; '.join(errors)[:255] if errors else ''
-    order.save(update_fields=['whatsapp_notified', 'whatsapp_notified_at', 'whatsapp_notify_error'])
+    order.save(update_fields=['whatsapp_notify_error'])
 
 
 def _mp_access_token():
@@ -877,4 +900,5 @@ def payments_webhook(request):
     _sync_order_from_mp_payment(order, payment_data)
     return JsonResponse({'ok': True})
 
+
 
