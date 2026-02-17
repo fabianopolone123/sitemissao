@@ -571,6 +571,11 @@ h1 {
     padding: 12px;
 }
 
+.report-card canvas {
+    width: 100% !important;
+    min-height: 260px;
+}
+
 .manage-nav {
     display: flex;
     flex-wrap: wrap;
