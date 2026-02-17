@@ -11,6 +11,8 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
+from django.db.models import Avg, Count, Sum
+from django.db.models.functions import TruncDate
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -640,6 +642,74 @@ def manage_sales_page(request):
         'shop/manage_sales.html',
         {
             'products': products,
+        },
+    )
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_GET
+def manage_reports_page(request):
+    orders = Order.objects.all()
+    paid_orders = orders.filter(is_paid=True)
+    total_orders = orders.count()
+    total_paid_orders = paid_orders.count()
+    total_revenue = paid_orders.aggregate(total=Sum('total')).get('total') or Decimal('0.00')
+    average_ticket = paid_orders.aggregate(avg=Avg('total')).get('avg') or Decimal('0.00')
+
+    daily_rows = (
+        paid_orders.annotate(day=TruncDate('created_at'))
+        .values('day')
+        .annotate(total=Sum('total'), count=Count('id'))
+        .order_by('day')[:30]
+    )
+    chart_daily_labels = [row['day'].strftime('%d/%m') for row in daily_rows if row.get('day')]
+    chart_daily_values = [float(row['total']) for row in daily_rows]
+    chart_daily_counts = [row['count'] for row in daily_rows]
+
+    payment_rows = (
+        orders.values('payment_method')
+        .annotate(count=Count('id'), total=Sum('total'))
+        .order_by('payment_method')
+    )
+    payment_label_map = dict(Order.PAYMENT_CHOICES)
+    chart_payment_labels = [payment_label_map.get(row['payment_method'], row['payment_method']) for row in payment_rows]
+    chart_payment_counts = [row['count'] for row in payment_rows]
+    chart_payment_totals = [float(row['total'] or 0) for row in payment_rows]
+
+    status_rows = (
+        orders.values('is_paid', 'is_delivered')
+        .annotate(count=Count('id'))
+        .order_by('is_paid', 'is_delivered')
+    )
+    status_counter = {
+        'paid_delivered': 0,
+        'paid_undelivered': 0,
+        'unpaid': 0,
+    }
+    for row in status_rows:
+        if row['is_paid'] and row['is_delivered']:
+            status_counter['paid_delivered'] += row['count']
+        elif row['is_paid'] and not row['is_delivered']:
+            status_counter['paid_undelivered'] += row['count']
+        else:
+            status_counter['unpaid'] += row['count']
+
+    return render(
+        request,
+        'shop/manage_reports.html',
+        {
+            'total_orders': total_orders,
+            'total_paid_orders': total_paid_orders,
+            'total_revenue': total_revenue,
+            'average_ticket': average_ticket,
+            'chart_daily_labels': chart_daily_labels,
+            'chart_daily_values': chart_daily_values,
+            'chart_daily_counts': chart_daily_counts,
+            'chart_payment_labels': chart_payment_labels,
+            'chart_payment_counts': chart_payment_counts,
+            'chart_payment_totals': chart_payment_totals,
+            'status_counter': status_counter,
         },
     )
 

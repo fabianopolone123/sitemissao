@@ -551,6 +551,26 @@ h1 {
     height: fit-content;
 }
 
+.report-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.report-charts-grid {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 12px;
+}
+
+.report-card {
+    border: 1px solid #e5dfd4;
+    background: #fff;
+    border-radius: 12px;
+    padding: 12px;
+}
+
 .manage-nav {
     display: flex;
     flex-wrap: wrap;

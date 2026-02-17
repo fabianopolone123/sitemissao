@@ -1,0 +1,158 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatórios | Missão Andrews</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'shop/styles.css' %}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header class="manage-header">
+        <h1>Relatórios de Vendas</h1>
+        <div class="manage-header-actions">
+            <a class="secondary-button link-button" href="{% url 'manage_products_page' %}">Voltar ao painel</a>
+            <a class="secondary-button link-button" href="{% url 'manage_sales_page' %}">Vender</a>
+        </div>
+    </header>
+
+    <main class="manage-page">
+        <section class="section-card report-summary-grid">
+            <article class="report-card">
+                <div class="cart-meta">Total de pedidos</div>
+                <strong>{{ total_orders }}</strong>
+            </article>
+            <article class="report-card">
+                <div class="cart-meta">Pedidos pagos</div>
+                <strong>{{ total_paid_orders }}</strong>
+            </article>
+            <article class="report-card">
+                <div class="cart-meta">Faturamento</div>
+                <strong>R$ {{ total_revenue|floatformat:2 }}</strong>
+            </article>
+            <article class="report-card">
+                <div class="cart-meta">Ticket médio</div>
+                <strong>R$ {{ average_ticket|floatformat:2 }}</strong>
+            </article>
+        </section>
+
+        <section class="section-card report-charts-grid">
+            <article class="report-card">
+                <p class="panel-subtitle">Faturamento diário (pagos)</p>
+                <canvas id="chart-daily-revenue"></canvas>
+            </article>
+            <article class="report-card">
+                <p class="panel-subtitle">Pedidos por forma de pagamento</p>
+                <canvas id="chart-payment-methods"></canvas>
+            </article>
+            <article class="report-card">
+                <p class="panel-subtitle">Valor por forma de pagamento</p>
+                <canvas id="chart-payment-totals"></canvas>
+            </article>
+            <article class="report-card">
+                <p class="panel-subtitle">Status dos pedidos</p>
+                <canvas id="chart-status"></canvas>
+            </article>
+        </section>
+    </main>
+
+    {{ chart_daily_labels|json_script:"chart-daily-labels" }}
+    {{ chart_daily_values|json_script:"chart-daily-values" }}
+    {{ chart_daily_counts|json_script:"chart-daily-counts" }}
+    {{ chart_payment_labels|json_script:"chart-payment-labels" }}
+    {{ chart_payment_counts|json_script:"chart-payment-counts" }}
+    {{ chart_payment_totals|json_script:"chart-payment-totals" }}
+    {{ status_counter|json_script:"chart-status-counter" }}
+
+    <script>
+        (function () {
+            const dailyLabels = JSON.parse(document.getElementById('chart-daily-labels').textContent);
+            const dailyValues = JSON.parse(document.getElementById('chart-daily-values').textContent);
+            const dailyCounts = JSON.parse(document.getElementById('chart-daily-counts').textContent);
+            const paymentLabels = JSON.parse(document.getElementById('chart-payment-labels').textContent);
+            const paymentCounts = JSON.parse(document.getElementById('chart-payment-counts').textContent);
+            const paymentTotals = JSON.parse(document.getElementById('chart-payment-totals').textContent);
+            const statusCounter = JSON.parse(document.getElementById('chart-status-counter').textContent);
+
+            new Chart(document.getElementById('chart-daily-revenue'), {
+                type: 'line',
+                data: {
+                    labels: dailyLabels,
+                    datasets: [
+                        {
+                            label: 'R$ por dia',
+                            data: dailyValues,
+                            borderColor: '#19543d',
+                            backgroundColor: 'rgba(25,84,61,0.2)',
+                            fill: true,
+                            tension: 0.3,
+                        },
+                        {
+                            label: 'Qtd pedidos',
+                            data: dailyCounts,
+                            borderColor: '#d9a441',
+                            backgroundColor: 'rgba(217,164,65,0.15)',
+                            fill: false,
+                            tension: 0.3,
+                            yAxisID: 'y1',
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true },
+                        y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } },
+                    },
+                },
+            });
+
+            new Chart(document.getElementById('chart-payment-methods'), {
+                type: 'bar',
+                data: {
+                    labels: paymentLabels,
+                    datasets: [{
+                        label: 'Quantidade',
+                        data: paymentCounts,
+                        backgroundColor: ['#19543d', '#d9a441', '#366f8a', '#a04f4f'],
+                    }],
+                },
+                options: { responsive: true, scales: { y: { beginAtZero: true } } },
+            });
+
+            new Chart(document.getElementById('chart-payment-totals'), {
+                type: 'doughnut',
+                data: {
+                    labels: paymentLabels,
+                    datasets: [{
+                        label: 'Total',
+                        data: paymentTotals,
+                        backgroundColor: ['#19543d', '#d9a441', '#366f8a', '#a04f4f'],
+                    }],
+                },
+                options: { responsive: true },
+            });
+
+            new Chart(document.getElementById('chart-status'), {
+                type: 'pie',
+                data: {
+                    labels: ['Pago + Entregue', 'Pago + Nao entregue', 'Nao pago'],
+                    datasets: [{
+                        data: [
+                            statusCounter.paid_delivered || 0,
+                            statusCounter.paid_undelivered || 0,
+                            statusCounter.unpaid || 0,
+                        ],
+                        backgroundColor: ['#2f8a5c', '#d9a441', '#9b2c2c'],
+                    }],
+                },
+                options: { responsive: true },
+            });
+        })();
+    </script>
+</body>
+</html>
