@@ -16,7 +16,7 @@ from django.utils.crypto import constant_time_compare
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
-from .models import Order, Product, ProductVariant
+from .models import Order, Product, ProductVariant, WhatsAppRecipient
 
 
 def _get_cart(session):
@@ -183,6 +183,111 @@ def _save_product_from_request(request, product=None):
     return product, None
 
 
+def _normalize_whatsapp_phone(value):
+    digits = ''.join(ch for ch in (value or '') if ch.isdigit())
+    if not digits:
+        return ''
+    digits = digits.lstrip('0')
+    if digits.startswith('55'):
+        return digits
+    if len(digits) in {10, 11}:
+        return f'55{digits}'
+    return digits
+
+
+def _wapi_send_text(phone, message):
+    instance_id = os.getenv('WAPI_INSTANCE_ID', '').strip()
+    token = os.getenv('WAPI_TOKEN', '').strip()
+    if not instance_id or not token:
+        raise ValueError('W-API nao configurada. Defina WAPI_INSTANCE_ID e WAPI_TOKEN.')
+
+    url = f'https://api.w-api.app/v1/message/send-text?instanceId={instance_id}'
+    payload = {
+        'phone': phone,
+        'message': message,
+    }
+    req = urllib_request.Request(
+        url=url,
+        data=json.dumps(payload).encode('utf-8'),
+        headers={
+            'Authorization': f'Bearer {token}',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        },
+        method='POST',
+    )
+    try:
+        with urllib_request.urlopen(req, timeout=30) as response:
+            if response.status != 200:
+                raise ValueError(f'W-API retornou HTTP {response.status}.')
+    except error.HTTPError as exc:
+        body = exc.read().decode('utf-8', 'ignore')
+        raise ValueError(f'Erro W-API HTTP {exc.code}: {body}') from exc
+
+
+def _build_order_whatsapp_message(order):
+    lines = [
+        'Pagamento aprovado!',
+        f'Pedido #{order.id}',
+        f'Cliente: {order.first_name} {order.last_name}',
+        f'WhatsApp: {order.whatsapp}',
+        f'Total: R$ {order.total:.2f}',
+        '',
+        'Itens:',
+    ]
+    for item in order.items_json:
+        qty = item.get('quantity', 0)
+        name = item.get('name', 'Item')
+        subtotal = item.get('subtotal', '0.00')
+        lines.append(f'- {qty}x {name} | R$ {subtotal}')
+
+    lines.extend(
+        [
+            '',
+            'Retirada: Colegio Adventista de Sao Carlos',
+            'Data: 21/02/2026 a partir das 19:30',
+            '',
+            'Obrigado! Sua contribuicao ajuda a Missao Andrews a alcancar mais criancas e familias.',
+        ]
+    )
+    return '\n'.join(lines)
+
+
+def _send_whatsapp_notifications_for_order(order):
+    if order.whatsapp_notified:
+        return
+
+    phones = set()
+    buyer_phone = _normalize_whatsapp_phone(order.whatsapp)
+    if buyer_phone:
+        phones.add(buyer_phone)
+
+    for recipient in WhatsAppRecipient.objects.filter(active=True):
+        normalized = _normalize_whatsapp_phone(recipient.phone)
+        if normalized:
+            phones.add(normalized)
+
+    if not phones:
+        order.whatsapp_notified = True
+        order.whatsapp_notified_at = timezone.now()
+        order.whatsapp_notify_error = 'Nenhum telefone valido para envio.'
+        order.save(update_fields=['whatsapp_notified', 'whatsapp_notified_at', 'whatsapp_notify_error'])
+        return
+
+    message = _build_order_whatsapp_message(order)
+    errors = []
+    for phone in phones:
+        try:
+            _wapi_send_text(phone, message)
+        except ValueError as exc:
+            errors.append(str(exc))
+
+    order.whatsapp_notified = True
+    order.whatsapp_notified_at = timezone.now()
+    order.whatsapp_notify_error = '; '.join(errors)[:255] if errors else ''
+    order.save(update_fields=['whatsapp_notified', 'whatsapp_notified_at', 'whatsapp_notify_error'])
+
+
 def _mp_access_token():
     return os.getenv('MP_ACCESS_TOKEN_PROD', '').strip()
 
@@ -292,6 +397,9 @@ def _sync_order_from_mp_payment(order, payment_data):
 
     if update_fields:
         order.save(update_fields=update_fields)
+
+    if order.is_paid and not order.whatsapp_notified:
+        _send_whatsapp_notifications_for_order(order)
 
 
 def _is_valid_mp_webhook_signature(request, payment_id):
@@ -408,6 +516,7 @@ def manage_products_page(request):
     editing_product = None
     editing_variants_text = ''
     orders = Order.objects.all().order_by('-created_at')
+    whatsapp_recipients = WhatsAppRecipient.objects.all().order_by('name')
     users = User.objects.all().order_by('username')
     if edit_id:
         editing_product = get_object_or_404(Product, id=edit_id)
@@ -426,6 +535,7 @@ def manage_products_page(request):
             'editing_product': editing_product,
             'editing_variants_text': editing_variants_text,
             'orders': orders,
+            'whatsapp_recipients': whatsapp_recipients,
             'users': users,
         },
     )
@@ -506,6 +616,42 @@ def manage_users_create_page(request):
     user.is_staff = is_staff
     user.save(update_fields=['is_staff'])
     messages.success(request, f'UsuÃ¡rio "{username}" criado com sucesso.')
+    return redirect('manage_products_page')
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_POST
+def manage_whatsapp_recipient_create_page(request):
+    name = request.POST.get('name', '').strip()
+    phone_raw = request.POST.get('phone', '').strip()
+    phone = _normalize_whatsapp_phone(phone_raw)
+
+    if not name or not phone:
+        messages.error(request, 'Informe nome e WhatsApp validos para cadastrar.')
+        return redirect('manage_products_page')
+
+    recipient, created = WhatsAppRecipient.objects.get_or_create(
+        phone=phone,
+        defaults={'name': name, 'active': True},
+    )
+    if created:
+        messages.success(request, f'Contato WhatsApp "{name}" cadastrado.')
+    else:
+        recipient.name = name
+        recipient.active = True
+        recipient.save(update_fields=['name', 'active'])
+        messages.success(request, f'Contato WhatsApp "{name}" atualizado.')
+    return redirect('manage_products_page')
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_POST
+def manage_whatsapp_recipient_delete_page(request, recipient_id):
+    recipient = get_object_or_404(WhatsAppRecipient, id=recipient_id)
+    recipient.delete()
+    messages.success(request, 'Contato WhatsApp removido.')
     return redirect('manage_products_page')
 
 
@@ -650,6 +796,8 @@ def checkout_finalize(request):
         order.is_paid = True
         order.paid_at = timezone.now()
     order.save()
+    if order.is_paid and not order.whatsapp_notified:
+        _send_whatsapp_notifications_for_order(order)
 
     request.session['cart'] = {}
     request.session.modified = True

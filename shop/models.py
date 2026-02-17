@@ -59,6 +59,9 @@ class Order(models.Model):
     paid_at = models.DateTimeField(blank=True, null=True)
     is_delivered = models.BooleanField(default=False)
     delivered_at = models.DateTimeField(blank=True, null=True)
+    whatsapp_notified = models.BooleanField(default=False)
+    whatsapp_notified_at = models.DateTimeField(blank=True, null=True)
+    whatsapp_notify_error = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -66,3 +69,16 @@ class Order(models.Model):
 
     def __str__(self) -> str:
         return f'Pedido #{self.id} - {self.first_name} {self.last_name}'
+
+
+class WhatsAppRecipient(models.Model):
+    name = models.CharField(max_length=120)
+    phone = models.CharField(max_length=20, unique=True)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self) -> str:
+        return f'{self.name} ({self.phone})'

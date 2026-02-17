@@ -22,6 +22,7 @@
         <nav class="manage-nav">
             <button type="button" class="secondary-button manage-tab-btn is-active" data-target="secao-produtos">Produtos</button>
             <button type="button" class="secondary-button manage-tab-btn" data-target="secao-pedidos">Pedidos</button>
+            <button type="button" class="secondary-button manage-tab-btn" data-target="secao-whatsapp">WhatsApp</button>
             <button type="button" class="secondary-button manage-tab-btn" data-target="secao-usuarios">Usuários</button>
         </nav>
 
@@ -168,6 +169,40 @@
                     </article>
                 {% empty %}
                     <p>Nenhum pedido encontrado.</p>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section id="secao-whatsapp" class="orders-section section-card manage-section">
+            <h2>Notificações WhatsApp</h2>
+            <p class="cart-meta">Cadastre os números que devem receber aviso quando o pagamento for aprovado.</p>
+
+            <form class="checkout-form user-create-form" method="post" action="{% url 'manage_whatsapp_recipient_create_page' %}">
+                {% csrf_token %}
+                <input type="text" name="name" placeholder="Nome" required>
+                <input type="text" name="phone" placeholder="WhatsApp (ex: 14988208154 ou 5514988208154)" required>
+                <button class="add-btn" type="submit">Cadastrar contato</button>
+            </form>
+
+            <div class="users-list">
+                {% for recipient in whatsapp_recipients %}
+                    <article class="user-card">
+                        <div class="order-head">
+                            <strong>{{ recipient.name }}</strong>
+                            <span class="status-chip {% if recipient.active %}status-chip-active{% else %}status-chip-inactive{% endif %}">
+                                {% if recipient.active %}Ativo{% else %}Inativo{% endif %}
+                            </span>
+                        </div>
+                        <div class="order-meta">
+                            <div><strong>WhatsApp:</strong> {{ recipient.phone }}</div>
+                        </div>
+                        <form method="post" action="{% url 'manage_whatsapp_recipient_delete_page' recipient.id %}" onsubmit="return confirm('Deseja remover este contato?');">
+                            {% csrf_token %}
+                            <button type="submit" class="danger-btn">Remover</button>
+                        </form>
+                    </article>
+                {% empty %}
+                    <p>Nenhum contato cadastrado.</p>
                 {% endfor %}
             </div>
         </section>
