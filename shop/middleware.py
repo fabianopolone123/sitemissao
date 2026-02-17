@@ -69,7 +69,10 @@ class AuditLogMiddleware:
         path = request.path or ''
         if path.startswith('/static/') or path.startswith('/media/'):
             return
-        if path == '/favicon.ico':
+        normalized_path = path.lower()
+        if normalized_path == '/favicon.ico' or normalized_path.startswith('/favicon.ico/'):
+            return
+        if normalized_path.endswith('/sellers.json') or normalized_path.endswith('sellers.json'):
             return
 
         started_at = getattr(request, '_audit_started_at', time.time())
