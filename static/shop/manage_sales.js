@@ -58,8 +58,20 @@
         return parseResponse(response);
     }
 
+    function parseMoney(value) {
+        if (typeof value === 'number') {
+            return Number.isFinite(value) ? value : 0;
+        }
+        let normalized = String(value || '').trim().replace(/\s+/g, '');
+        if (normalized.includes(',')) {
+            normalized = normalized.replace(/\./g, '').replace(',', '.');
+        }
+        const parsed = Number(normalized);
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+
     function formatMoney(value) {
-        return Number(value).toFixed(2);
+        return parseMoney(value).toFixed(2);
     }
 
     function openModal() {
@@ -83,7 +95,7 @@
         let total = 0;
         cartItemsEl.innerHTML = saleCart
             .map((item, index) => {
-                const subtotal = Number(item.price) * Number(item.quantity);
+                const subtotal = parseMoney(item.price) * Number(item.quantity);
                 total += subtotal;
                 return `
                     <article class="cart-item">
@@ -118,13 +130,13 @@
 
         let variantId = null;
         let variantName = '';
-        let price = Number(card.querySelector('.product-price').dataset.basePrice || '0');
+        let price = parseMoney(card.querySelector('.product-price').dataset.basePrice || '0');
 
         if (select && select.value) {
             variantId = Number(select.value);
             const option = select.options[select.selectedIndex];
             variantName = option.dataset.name || '';
-            price = Number(option.dataset.price || price);
+            price = parseMoney(option.dataset.price || price);
         }
 
         const itemName = variantName ? `${productName} - ${variantName}` : productName;
