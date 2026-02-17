@@ -25,53 +25,10 @@
         return;
     }
 
-    const dailyLabels = getJson('chart-daily-labels', []);
-    const dailyValues = getJson('chart-daily-values', []);
-    const dailyCounts = getJson('chart-daily-counts', []);
     const paymentLabels = getJson('chart-payment-labels', []);
     const paymentCounts = getJson('chart-payment-counts', []);
     const paymentTotals = getJson('chart-payment-totals-data', []);
     const statusCounter = getJson('chart-status-counter', {});
-
-    try {
-        new Chart(document.getElementById('chart-daily-revenue'), {
-            type: 'line',
-            data: {
-                labels: dailyLabels,
-                datasets: [
-                    {
-                        label: 'R$ por dia',
-                        data: dailyValues,
-                        borderColor: '#19543d',
-                        backgroundColor: 'rgba(25,84,61,0.2)',
-                        fill: true,
-                        tension: 0.3,
-                    },
-                    {
-                        label: 'Qtd pedidos',
-                        data: dailyCounts,
-                        borderColor: '#d9a441',
-                        backgroundColor: 'rgba(217,164,65,0.15)',
-                        fill: false,
-                        tension: 0.3,
-                        yAxisID: 'y1',
-                    },
-                ],
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                aspectRatio: 2.2,
-                scales: {
-                    y: { beginAtZero: true },
-                    y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } },
-                },
-            },
-        });
-
-    } catch (error) {
-        console.error('Falha no grafico de faturamento diario:', error);
-    }
 
     try {
         new Chart(document.getElementById('chart-payment-methods'), {

@@ -42,10 +42,6 @@
 
         <section class="section-card report-charts-grid">
             <article class="report-card">
-                <p class="panel-subtitle">Faturamento diário (pagos)</p>
-                <canvas id="chart-daily-revenue"></canvas>
-            </article>
-            <article class="report-card">
                 <p class="panel-subtitle">Pedidos por forma de pagamento</p>
                 <canvas id="chart-payment-methods"></canvas>
             </article>
@@ -88,9 +84,6 @@
         </section>
     </main>
 
-    {{ chart_daily_labels|json_script:"chart-daily-labels" }}
-    {{ chart_daily_values|json_script:"chart-daily-values" }}
-    {{ chart_daily_counts|json_script:"chart-daily-counts" }}
     {{ chart_payment_labels|json_script:"chart-payment-labels" }}
     {{ chart_payment_counts|json_script:"chart-payment-counts" }}
     {{ chart_payment_totals|json_script:"chart-payment-totals-data" }}
