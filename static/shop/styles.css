@@ -1,4 +1,4 @@
-:root {
+﻿:root {
     --bg: #f5f1e8;
     --surface: #fffdf9;
     --primary: #19543d;
@@ -30,7 +30,7 @@ body {
     padding: 40px 28px 20px;
     display: flex;
     align-items: stretch;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 20px;
     position: relative;
     overflow: hidden;
@@ -65,69 +65,6 @@ body {
     z-index: 3;
     max-width: 760px;
     padding-top: 24px;
-}
-
-.hero-media {
-    width: min(460px, 44vw);
-    position: relative;
-    z-index: 3;
-    align-self: center;
-}
-
-.mission-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-}
-
-.mission-card {
-    border-radius: 16px;
-    overflow: hidden;
-    background: rgba(255, 255, 255, 0.84);
-    border: 1px solid rgba(255, 255, 255, 0.65);
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
-    backdrop-filter: blur(2px);
-}
-
-.map-card {
-    grid-column: span 2;
-    min-height: 120px;
-    padding: 14px;
-    position: relative;
-    background:
-        radial-gradient(circle at 80% 25%, rgba(25, 84, 61, 0.18), transparent 35%),
-        linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(239, 246, 242, 0.95));
-}
-
-.map-card::after {
-    content: '🌎';
-    position: absolute;
-    right: 12px;
-    bottom: 8px;
-    font-size: 2rem;
-}
-
-.map-card h3 {
-    margin: 0 0 4px;
-    font-size: 1.05rem;
-    color: var(--primary-strong);
-}
-
-.map-card p {
-    margin: 0;
-    color: var(--muted);
-    font-size: 0.92rem;
-}
-
-.photo-card {
-    min-height: 130px;
-}
-
-.photo-card img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
 }
 
 .tag {
@@ -443,13 +380,7 @@ h1 {
         min-height: 0;
         overflow: hidden;
         margin: 10px 12px 0;
-    }
-
-    .hero-media {
-        width: 100%;
-    }
-
-    .desktop-cart-button {
+    }`n    .desktop-cart-button {
         display: none;
     }
 
@@ -461,3 +392,4 @@ h1 {
         padding: 10px 18px 30px;
     }
 }
+
