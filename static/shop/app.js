@@ -44,7 +44,7 @@
         cartTotal.textContent = `R$ ${cart.total}`;
 
         if (!cart.items.length) {
-            cartItems.innerHTML = '<p>Seu carrinho esta vazio.</p>';
+            cartItems.innerHTML = '<p>Seu carrinho está vazio.</p>';
             return;
         }
 
