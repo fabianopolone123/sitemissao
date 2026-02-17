@@ -145,6 +145,7 @@
                         <div class="order-meta">
                             <div><strong>Cliente:</strong> {{ order.first_name }} {{ order.last_name }}</div>
                             <div><strong>Telefone:</strong> {{ order.whatsapp }}</div>
+                            <div><strong>Pagamento:</strong> {{ order.get_payment_method_display }}</div>
                             <div><strong>Total:</strong> R$ {{ order.total }}</div>
                             <div><strong>Data:</strong> {{ order.created_at|date:"d/m/Y H:i" }}</div>
                             <div><strong>Entrega:</strong> {% if order.delivered_at %}{{ order.delivered_at|date:"d/m/Y H:i" }}{% else %}Pendente{% endif %}</div>

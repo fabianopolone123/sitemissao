@@ -277,6 +277,7 @@
                 statusPoller = window.setInterval(pollPixStatus, 5000);
                 pollPixStatus();
             } else {
+                modalQr.removeAttribute('src');
                 modalQr.hidden = true;
                 copyPixBtn.hidden = true;
                 markPaidBtn.hidden = payload.is_paid;
