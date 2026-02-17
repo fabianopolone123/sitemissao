@@ -155,7 +155,7 @@
 
             const updatePrice = () => {
                 const selectedOption = select.options[select.selectedIndex];
-                const selectedPrice = selectedOption ? selectedOption.dataset.price : null;
+                const selectedPrice = select.value && selectedOption ? selectedOption.dataset.price : null;
                 const basePrice = priceElement.dataset.basePrice || '0.00';
                 priceElement.textContent = `R$ ${selectedPrice || basePrice}`;
             };

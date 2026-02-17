@@ -56,6 +56,7 @@
                         {% csrf_token %}
                         {% if product.active_variants %}
                             <select name="variant_id" class="variant-select" required>
+                                <option value="" selected>Escolha a opção</option>
                                 {% for variant in product.active_variants %}
                                     <option value="{{ variant.id }}" data-price="{{ variant.price }}">
                                         {{ variant.name }} - R$ {{ variant.price }}
