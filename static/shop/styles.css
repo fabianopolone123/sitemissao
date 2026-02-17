@@ -34,41 +34,99 @@ body {
     gap: 20px;
     position: relative;
     overflow: hidden;
-    min-height: 430px;
+    min-height: 440px;
     border-radius: 22px;
     margin: 16px 18px 0;
+}
+
+.hero::before {
+    content: '';
+    position: absolute;
+    inset: -5%;
+    background: url('/static/shop/img/logos.png') center/cover no-repeat;
+    opacity: 0.22;
+    filter: saturate(0.95);
+    z-index: 0;
+}
+
+.hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(180deg, rgba(245, 241, 232, 0.25) 0%, rgba(245, 241, 232, 0.86) 84%, rgba(245, 241, 232, 1) 100%),
+        linear-gradient(90deg, rgba(245, 241, 232, 0.92) 0%, rgba(245, 241, 232, 0.35) 40%, rgba(245, 241, 232, 0.12) 70%, rgba(245, 241, 232, 0.3) 100%);
+    z-index: 1;
 }
 
 .hero-copy {
     flex: 1;
     position: relative;
-    z-index: 2;
+    z-index: 3;
     max-width: 760px;
     padding-top: 24px;
 }
 
 .hero-media {
-    width: 100%;
-    position: absolute;
-    inset: 0;
+    width: min(460px, 44vw);
+    position: relative;
+    z-index: 3;
+    align-self: center;
+}
+
+.mission-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.mission-card {
+    border-radius: 16px;
     overflow: hidden;
-    z-index: 1;
+    background: rgba(255, 255, 255, 0.84);
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+    backdrop-filter: blur(2px);
 }
 
-.hero-media::after {
-    content: '';
-    position: absolute;
-    inset: 0;
+.map-card {
+    grid-column: span 2;
+    min-height: 120px;
+    padding: 14px;
+    position: relative;
     background:
-        linear-gradient(180deg, rgba(20, 28, 24, 0.12) 0%, rgba(20, 28, 24, 0.35) 55%, rgba(245, 241, 232, 0.9) 92%, rgba(245, 241, 232, 1) 100%),
-        linear-gradient(90deg, rgba(245, 241, 232, 0.98) 0%, rgba(245, 241, 232, 0.4) 36%, rgba(245, 241, 232, 0.06) 62%, rgba(245, 241, 232, 0.25) 100%);
+        radial-gradient(circle at 80% 25%, rgba(25, 84, 61, 0.18), transparent 35%),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(239, 246, 242, 0.95));
 }
 
-.hero-media img {
+.map-card::after {
+    content: '🌎';
+    position: absolute;
+    right: 12px;
+    bottom: 8px;
+    font-size: 2rem;
+}
+
+.map-card h3 {
+    margin: 0 0 4px;
+    font-size: 1.05rem;
+    color: var(--primary-strong);
+}
+
+.map-card p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.92rem;
+}
+
+.photo-card {
+    min-height: 130px;
+}
+
+.photo-card img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    object-position: center top;
     display: block;
 }
 
@@ -113,7 +171,7 @@ h1 {
     position: absolute;
     right: 24px;
     top: 24px;
-    z-index: 2;
+    z-index: 4;
 }
 
 .mobile-cart-button {
@@ -388,16 +446,7 @@ h1 {
     }
 
     .hero-media {
-        position: relative;
         width: 100%;
-        min-height: 260px;
-        overflow: hidden;
-    }
-
-    .hero-media::after {
-        background:
-            linear-gradient(180deg, rgba(20, 28, 24, 0.14) 0%, rgba(20, 28, 24, 0.35) 56%, rgba(245, 241, 232, 0.85) 90%, rgba(245, 241, 232, 1) 100%),
-            linear-gradient(90deg, rgba(245, 241, 232, 0.8) 0%, rgba(245, 241, 232, 0.12) 48%, rgba(245, 241, 232, 0.18) 100%);
     }
 
     .desktop-cart-button {

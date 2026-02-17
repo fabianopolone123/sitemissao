@@ -21,11 +21,22 @@
             </button>
         </div>
         <div class="hero-media">
-            <img src="{% static 'shop/img/logos.png' %}" alt="Missão Andrews">
-            <button id="open-cart-desktop" class="cart-button desktop-cart-button" type="button">
-                Carrinho <span class="cart-count-badge">{{ cart.count }}</span>
-            </button>
+            <div class="mission-grid">
+                <article class="mission-card map-card">
+                    <h3>Mapa de Missões</h3>
+                    <p>Amazonas, África e novas frentes de apoio.</p>
+                </article>
+                <article class="mission-card photo-card">
+                    <img src="https://images.unsplash.com/photo-1509099863731-ef4bff19e808?auto=format&fit=crop&w=900&q=80" alt="Ação missionária">
+                </article>
+                <article class="mission-card photo-card">
+                    <img src="https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=900&q=80" alt="Comunidade atendida">
+                </article>
+            </div>
         </div>
+        <button id="open-cart-desktop" class="cart-button desktop-cart-button" type="button">
+            Carrinho <span class="cart-count-badge">{{ cart.count }}</span>
+        </button>
     </header>
 
     <main class="products-grid">
