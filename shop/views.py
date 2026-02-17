@@ -193,6 +193,10 @@ def _can_manage(user):
     return user.is_authenticated
 
 
+def _order_delete_password():
+    return os.getenv('ORDER_DELETE_PASSWORD', '1234').strip()
+
+
 def _save_product_from_request(request, product=None):
     if product is None:
         product = Product()
@@ -917,6 +921,21 @@ def manage_order_delivery_page(request, order_id):
     else:
         messages.error(request, 'Acao invalida para status de entrega.')
 
+    return redirect('manage_products_page')
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_POST
+def manage_order_delete_page(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    informed_password = request.POST.get('delete_password', '').strip()
+    if informed_password != _order_delete_password():
+        messages.error(request, 'Senha invalida para excluir pedido.')
+        return redirect('manage_products_page')
+
+    order.delete()
+    messages.success(request, f'Pedido #{order_id} excluido com sucesso.')
     return redirect('manage_products_page')
 
 

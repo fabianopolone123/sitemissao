@@ -171,6 +171,11 @@
                                 <button type="submit" name="action" value="mark_delivered" class="add-btn">Marcar como entregue</button>
                             {% endif %}
                         </form>
+                        <form method="post" action="{% url 'manage_order_delete_page' order.id %}" class="order-actions order-delete-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="delete_password">
+                            <button type="submit" class="danger-btn">Excluir pedido</button>
+                        </form>
                     </article>
                 {% empty %}
                     <p>Nenhum pedido encontrado.</p>
@@ -316,6 +321,18 @@
                     });
                 });
             }
+
+            document.querySelectorAll('.order-delete-form').forEach((form) => {
+                form.addEventListener('submit', (event) => {
+                    const password = window.prompt('Digite a senha para excluir o pedido:');
+                    if (!password) {
+                        event.preventDefault();
+                        return;
+                    }
+                    const input = form.querySelector('input[name="delete_password"]');
+                    input.value = password;
+                });
+            });
         })();
     </script>
 </body>
