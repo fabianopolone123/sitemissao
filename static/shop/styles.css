@@ -83,6 +83,8 @@ h1 {
     border-radius: var(--radius);
     overflow: hidden;
     box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
 }
 
 .product-card img {
@@ -93,6 +95,9 @@ h1 {
 
 .product-card .content {
     padding: 14px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
 }
 
 .product-card h2 {
@@ -109,6 +114,10 @@ h1 {
     display: block;
     margin-bottom: 12px;
     font-size: 1.2rem;
+}
+
+.add-form {
+    margin-top: auto;
 }
 
 .qty-control {
