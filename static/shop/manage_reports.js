@@ -30,7 +30,7 @@
     const dailyCounts = getJson('chart-daily-counts', []);
     const paymentLabels = getJson('chart-payment-labels', []);
     const paymentCounts = getJson('chart-payment-counts', []);
-    const paymentTotals = getJson('chart-payment-totals', []);
+    const paymentTotals = getJson('chart-payment-totals-data', []);
     const statusCounter = getJson('chart-status-counter', {});
 
     try {

@@ -583,6 +583,7 @@ h1 {
 
 .report-delivered-compact .panel-row {
     padding: 6px 8px;
+    grid-template-columns: 1fr;
 }
 
 .manage-nav {

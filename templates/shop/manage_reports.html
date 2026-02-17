@@ -93,7 +93,7 @@
     {{ chart_daily_counts|json_script:"chart-daily-counts" }}
     {{ chart_payment_labels|json_script:"chart-payment-labels" }}
     {{ chart_payment_counts|json_script:"chart-payment-counts" }}
-    {{ chart_payment_totals|json_script:"chart-payment-totals" }}
+    {{ chart_payment_totals|json_script:"chart-payment-totals-data" }}
     {{ status_counter|json_script:"chart-status-counter" }}
 
     <script src="{% static 'shop/manage_reports.js' %}"></script>
