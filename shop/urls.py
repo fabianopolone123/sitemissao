@@ -30,4 +30,5 @@ urlpatterns = [
     path('checkout/finalize/', views.checkout_finalize, name='checkout_finalize'),
     path('checkout/status/<int:order_id>/', views.checkout_status, name='checkout_status'),
     path('payments/webhook/', views.payments_webhook, name='payments_webhook'),
+    path('orders/print/<int:order_id>/', views.order_print_public_page, name='order_print_public_page'),
 ]

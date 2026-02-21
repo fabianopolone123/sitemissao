@@ -18,6 +18,7 @@
     const paymentModal = document.getElementById('payment-modal');
     const closePaymentModalButton = document.getElementById('close-payment-modal');
     const copyPixCodeButton = document.getElementById('copy-pix-code');
+    const printOrderTicketButton = document.getElementById('print-order-ticket');
     const paymentMessage = document.getElementById('payment-message');
     const paymentStatusLabel = document.getElementById('payment-status-label');
     const paymentQr = document.getElementById('payment-qr');
@@ -38,6 +39,7 @@
     let currentOrderId = null;
     let paymentPollInterval = null;
     let currentOrderSummary = null;
+    let currentPrintUrl = '';
     let paymentApprovedShown = false;
 
     function csrfToken() {
@@ -296,6 +298,8 @@
                 paymentQr.src = `data:image/png;base64,${payload.qr_code_base64}`;
                 currentPixCode = payload.pix_code;
                 currentOrderSummary = payload.order_summary || null;
+                currentPrintUrl = payload.print_url || '';
+                printOrderTicketButton.hidden = !currentPrintUrl;
                 const firstNameInput = checkoutForm.querySelector('input[name="first_name"]');
                 const lastNameInput = checkoutForm.querySelector('input[name="last_name"]');
                 if (firstNameInput) {
@@ -343,6 +347,14 @@
         }
     }
 
+    function printOrderTicket() {
+        if (!currentPrintUrl) {
+            showError('URL de impressao indisponivel.');
+            return;
+        }
+        window.open(currentPrintUrl, '_blank', 'noopener,noreferrer');
+    }
+
     openCartButtons.forEach((button) => button.addEventListener('click', openCart));
     closeCartButton.addEventListener('click', closeCart);
     cartOverlay.addEventListener('click', closeCart);
@@ -356,6 +368,7 @@
     closePaymentModalButton.addEventListener('click', closePaymentModal);
     paymentOverlay.addEventListener('click', closePaymentModal);
     copyPixCodeButton.addEventListener('click', copyPixCode);
+    printOrderTicketButton.addEventListener('click', printOrderTicket);
     closeSuccessModalButton.addEventListener('click', closeSuccessModal);
     successOkButton.addEventListener('click', closeSuccessModal);
     successOverlay.addEventListener('click', closeSuccessModal);

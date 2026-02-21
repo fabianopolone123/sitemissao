@@ -97,32 +97,34 @@
             <div class="total">Total: R$ {{ order.total|floatformat:2 }}</div>
         </section>
 
-        <div class="cut-line"></div>
+        {% if not kitchen_only %}
+            <div class="cut-line"></div>
 
-        <section class="copy">
-            <p class="title">VIA CLIENTE (RETIRADA)</p>
-            <p class="meta">
-                Pedido #{{ order.id }}<br>
-                Cliente: {{ order.first_name }} {{ order.last_name }}<br>
-                Retirada: Colégio Adventista de São Carlos<br>
-                Data: 21/02/2026 a partir das 19:30
-            </p>
-            <table class="items">
-                <tbody>
-                    {% for item in order.items_json %}
-                        <tr>
-                            <td>{{ item.quantity }}x {{ item.name }}</td>
-                            <td>R$ {{ item.subtotal }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            <div class="total">Total: R$ {{ order.total|floatformat:2 }}</div>
-            <p class="footer">
-                Obrigado por contribuir com a Missão Andrews.<br>
-                Este comprovante deve ser apresentado na retirada.
-            </p>
-        </section>
+            <section class="copy">
+                <p class="title">VIA CLIENTE (RETIRADA)</p>
+                <p class="meta">
+                    Pedido #{{ order.id }}<br>
+                    Cliente: {{ order.first_name }} {{ order.last_name }}<br>
+                    Retirada: Colégio Adventista de São Carlos<br>
+                    Data: 21/02/2026 a partir das 19:30
+                </p>
+                <table class="items">
+                    <tbody>
+                        {% for item in order.items_json %}
+                            <tr>
+                                <td>{{ item.quantity }}x {{ item.name }}</td>
+                                <td>R$ {{ item.subtotal }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div class="total">Total: R$ {{ order.total|floatformat:2 }}</div>
+                <p class="footer">
+                    Obrigado por contribuir com a Missão Andrews.<br>
+                    Este comprovante deve ser apresentado na retirada.
+                </p>
+            </section>
+        {% endif %}
     </div>
 
     <script>

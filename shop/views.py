@@ -11,9 +11,11 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User
+from django.core import signing
+from django.core.signing import BadSignature, SignatureExpired
 from django.db.models import Avg, Count, Sum
 from django.db.models.functions import TruncDate
-from django.http import JsonResponse
+from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -612,6 +614,22 @@ def _order_status_label(order):
     return status_map.get(order.mp_status, 'Aguardando pagamento')
 
 
+def _build_public_print_token(order_id):
+    signer = signing.TimestampSigner(salt='order-print-public')
+    return signer.sign(str(order_id))
+
+
+def _is_valid_public_print_token(order_id, token):
+    if not token:
+        return False
+    signer = signing.TimestampSigner(salt='order-print-public')
+    try:
+        unsigned = signer.unsign(token, max_age=60 * 60 * 24 * 7)
+    except (BadSignature, SignatureExpired):
+        return False
+    return unsigned == str(order_id)
+
+
 @require_GET
 def home(request):
     products = Product.objects.filter(active=True).prefetch_related('variants')
@@ -1015,6 +1033,25 @@ def manage_order_print_page(request, order_id):
     )
 
 
+@require_GET
+def order_print_public_page(request, order_id):
+    token = request.GET.get('token', '').strip()
+    if not _is_valid_public_print_token(order_id, token):
+        return HttpResponseForbidden('Token de impressao invalido.')
+
+    order = get_object_or_404(Order, id=order_id)
+    kitchen_only = request.GET.get('copy', '').strip().lower() == 'kitchen'
+    return render(
+        request,
+        'shop/order_print.html',
+        {
+            'order': order,
+            'printed_at': timezone.localtime(timezone.now()),
+            'kitchen_only': kitchen_only,
+        },
+    )
+
+
 @login_required
 @user_passes_test(_can_manage)
 @require_POST
@@ -1283,6 +1320,8 @@ def checkout_finalize(request):
         'total': f'{order.total:.2f}',
         'items': order.items_json,
     }
+    print_token = _build_public_print_token(order.id)
+    print_url = f"{reverse('order_print_public_page', args=[order.id])}?token={print_token}&copy=kitchen"
 
     return JsonResponse(
         {
@@ -1293,6 +1332,7 @@ def checkout_finalize(request):
             'qr_code_base64': pix_payload['qr_base64'],
             'pix_code': pix_payload['pix_code'],
             'order_summary': order_summary,
+            'print_url': print_url,
             'cart': _build_cart_payload(request.session['cart']),
         }
     )
