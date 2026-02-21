@@ -14,6 +14,7 @@
     data-create-sale-url="{% url 'manage_sales_create_order' %}"
     data-mark-paid-template="{% url 'manage_sales_mark_paid' 0 %}"
     data-checkout-status-template="{% url 'checkout_status' 0 %}"
+    data-print-order-template="{% url 'manage_order_print_page' 0 %}"
 >
     <header class="manage-header">
         <h1>Vendas no balcão</h1>
@@ -90,6 +91,7 @@
         <img id="sale-modal-qr" alt="QR Code Pix" hidden>
         <button id="sale-copy-pix" class="add-btn" type="button" hidden>Copiar código Pix</button>
         <button id="sale-mark-paid-btn" class="secondary-button" type="button" hidden>Marcar como pago</button>
+        <button id="sale-print-ticket-btn" class="secondary-button" type="button" hidden>Imprimir ficha</button>
     </section>
 
     <script src="{% static 'shop/manage_sales.js' %}"></script>

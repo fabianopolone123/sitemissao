@@ -12,6 +12,7 @@ urlpatterns = [
     path('manage/audit/page/', views.manage_audit_page, name='manage_audit_page'),
     path('manage/sales/create/', views.manage_sales_create_order, name='manage_sales_create_order'),
     path('manage/sales/mark-paid/<int:order_id>/', views.manage_sales_mark_paid, name='manage_sales_mark_paid'),
+    path('manage/orders/print/<int:order_id>/', views.manage_order_print_page, name='manage_order_print_page'),
     path('manage/products/page/save/', views.manage_products_save_page, name='manage_products_save_page'),
     path('manage/products/page/delete/<int:product_id>/', views.manage_products_delete_page, name='manage_products_delete_page'),
     path('manage/orders/page/delivery/<int:order_id>/', views.manage_order_delivery_page, name='manage_order_delivery_page'),

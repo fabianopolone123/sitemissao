@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Imprimir pedido #{{ order.id }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            color: #111;
+            background: #fff;
+        }
+        .sheet {
+            width: 78mm;
+            margin: 0 auto;
+            padding: 6mm 4mm;
+            box-sizing: border-box;
+        }
+        .copy {
+            border: 1px dashed #000;
+            padding: 3mm;
+            margin-bottom: 4mm;
+        }
+        .title {
+            font-size: 14px;
+            font-weight: 700;
+            margin: 0 0 2mm 0;
+            text-align: center;
+        }
+        .meta {
+            font-size: 12px;
+            line-height: 1.4;
+            margin: 0 0 2mm 0;
+        }
+        .items {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            margin-top: 2mm;
+        }
+        .items td {
+            padding: 1mm 0;
+            vertical-align: top;
+        }
+        .items td:last-child {
+            text-align: right;
+            white-space: nowrap;
+        }
+        .total {
+            border-top: 1px solid #000;
+            margin-top: 2mm;
+            padding-top: 2mm;
+            font-weight: 700;
+            font-size: 13px;
+        }
+        .footer {
+            margin-top: 3mm;
+            font-size: 11px;
+            line-height: 1.35;
+        }
+        .cut-line {
+            border-top: 1px dashed #000;
+            margin: 2mm 0 4mm 0;
+        }
+        @media print {
+            @page {
+                size: 80mm auto;
+                margin: 3mm;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sheet">
+        <section class="copy">
+            <p class="title">VIA COZINHA</p>
+            <p class="meta">
+                Pedido #{{ order.id }}<br>
+                Cliente: {{ order.first_name }} {{ order.last_name }}<br>
+                WhatsApp: {{ order.whatsapp }}<br>
+                Pagamento: {{ order.get_payment_method_display }}<br>
+                Pago: {% if order.is_paid %}Sim{% else %}Não{% endif %}<br>
+                Emissão: {{ printed_at|date:"d/m/Y H:i" }}
+            </p>
+            <table class="items">
+                <tbody>
+                    {% for item in order.items_json %}
+                        <tr>
+                            <td>{{ item.quantity }}x {{ item.name }}</td>
+                            <td>R$ {{ item.subtotal }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div class="total">Total: R$ {{ order.total|floatformat:2 }}</div>
+        </section>
+
+        <div class="cut-line"></div>
+
+        <section class="copy">
+            <p class="title">VIA CLIENTE (RETIRADA)</p>
+            <p class="meta">
+                Pedido #{{ order.id }}<br>
+                Cliente: {{ order.first_name }} {{ order.last_name }}<br>
+                Retirada: Colégio Adventista de São Carlos<br>
+                Data: 21/02/2026 a partir das 19:30
+            </p>
+            <table class="items">
+                <tbody>
+                    {% for item in order.items_json %}
+                        <tr>
+                            <td>{{ item.quantity }}x {{ item.name }}</td>
+                            <td>R$ {{ item.subtotal }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div class="total">Total: R$ {{ order.total|floatformat:2 }}</div>
+            <p class="footer">
+                Obrigado por contribuir com a Missão Andrews.<br>
+                Este comprovante deve ser apresentado na retirada.
+            </p>
+        </section>
+    </div>
+
+    <script>
+        window.addEventListener('load', function () {
+            window.print();
+        });
+    </script>
+</body>
+</html>

@@ -10,7 +10,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'shop/styles.css' %}">
 </head>
-<body>
+<body
+    data-print-order-id="{% if print_order_id %}{{ print_order_id }}{% endif %}"
+    data-print-order-template="{{ print_order_template_url }}"
+>
     <header class="manage-header">
         <h1>Painel de Produtos</h1>
         <div class="manage-header-actions">
@@ -333,6 +336,15 @@
                     input.value = password;
                 });
             });
+
+            const printOrderId = document.body.dataset.printOrderId;
+            const printOrderTemplate = document.body.dataset.printOrderTemplate;
+            if (printOrderId && printOrderTemplate) {
+                const printUrl = printOrderTemplate.replace('/0/', `/${printOrderId}/`);
+                window.setTimeout(() => {
+                    window.open(printUrl, '_blank', 'noopener,noreferrer');
+                }, 250);
+            }
         })();
     </script>
 </body>

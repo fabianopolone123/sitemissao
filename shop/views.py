@@ -15,6 +15,7 @@ from django.db.models import Avg, Count, Sum
 from django.db.models.functions import TruncDate
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.crypto import constant_time_compare
 from django.views.decorators.csrf import csrf_exempt
@@ -671,6 +672,7 @@ def manage_products_page(request):
     total_costs = CostEntry.objects.aggregate(total=Sum('amount')).get('total') or Decimal('0.00')
     whatsapp_recipients = WhatsAppRecipient.objects.all().order_by('name')
     users = User.objects.all().order_by('username')
+    print_order_id = request.session.pop('print_order_id', None)
     if edit_id:
         editing_product = get_object_or_404(Product, id=edit_id)
         editing_variants_text = '\n'.join(
@@ -692,6 +694,8 @@ def manage_products_page(request):
             'total_costs': total_costs,
             'whatsapp_recipients': whatsapp_recipients,
             'users': users,
+            'print_order_id': print_order_id,
+            'print_order_template_url': reverse('manage_order_print_page', args=[0]),
         },
     )
 
@@ -983,6 +987,7 @@ def manage_order_delivery_page(request, order_id):
         order.is_delivered = True
         order.delivered_at = timezone.now()
         order.save(update_fields=['is_delivered', 'delivered_at'])
+        request.session['print_order_id'] = order.id
         messages.success(request, f'Pedido #{order.id} marcado como entregue.')
     elif action == 'mark_undelivered':
         order.is_delivered = False
@@ -993,6 +998,21 @@ def manage_order_delivery_page(request, order_id):
         messages.error(request, 'Acao invalida para status de entrega.')
 
     return redirect('manage_products_page')
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_GET
+def manage_order_print_page(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    return render(
+        request,
+        'shop/order_print.html',
+        {
+            'order': order,
+            'printed_at': timezone.localtime(timezone.now()),
+        },
+    )
 
 
 @login_required

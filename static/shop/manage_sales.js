@@ -2,6 +2,7 @@
     const createSaleUrl = document.body.dataset.createSaleUrl;
     const markPaidTemplate = document.body.dataset.markPaidTemplate;
     const checkoutStatusTemplate = document.body.dataset.checkoutStatusTemplate;
+    const printOrderTemplate = document.body.dataset.printOrderTemplate;
 
     const saleForm = document.getElementById('sale-form');
     const paymentMethodSelect = document.getElementById('sale-payment-method');
@@ -17,6 +18,7 @@
     const modalQr = document.getElementById('sale-modal-qr');
     const copyPixBtn = document.getElementById('sale-copy-pix');
     const markPaidBtn = document.getElementById('sale-mark-paid-btn');
+    const printTicketBtn = document.getElementById('sale-print-ticket-btn');
     const closeModalBtn = document.getElementById('close-sale-modal');
 
     let saleCart = [];
@@ -83,6 +85,22 @@
         modalOverlay.hidden = true;
         modal.hidden = true;
         stopPixStatusPolling();
+    }
+
+    function buildPrintOrderUrl(orderId) {
+        if (!orderId || !printOrderTemplate) {
+            return '';
+        }
+        return printOrderTemplate.replace('/0/', `/${orderId}/`);
+    }
+
+    function openPrintTicket() {
+        const printUrl = buildPrintOrderUrl(currentOrderId);
+        if (!printUrl) {
+            showError('Nao foi possivel gerar a URL de impressao.');
+            return;
+        }
+        window.open(printUrl, '_blank', 'noopener,noreferrer');
     }
 
     function renderSaleCart() {
@@ -268,6 +286,7 @@
             modalStatus.textContent = payload.status_label || '';
 
             currentPixCode = payload.pix_code || '';
+            printTicketBtn.hidden = !currentOrderId;
             if (payload.qr_code_base64) {
                 modalQr.src = `data:image/png;base64,${payload.qr_code_base64}`;
                 modalQr.hidden = false;
@@ -324,6 +343,7 @@
     saleForm.addEventListener('submit', onSubmitSale);
     copyPixBtn.addEventListener('click', onCopyPix);
     markPaidBtn.addEventListener('click', onMarkPaid);
+    printTicketBtn.addEventListener('click', openPrintTicket);
     closeModalBtn.addEventListener('click', closeModal);
     modalOverlay.addEventListener('click', closeModal);
 
