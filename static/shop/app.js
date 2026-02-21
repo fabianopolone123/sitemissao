@@ -296,6 +296,14 @@
                 paymentQr.src = `data:image/png;base64,${payload.qr_code_base64}`;
                 currentPixCode = payload.pix_code;
                 currentOrderSummary = payload.order_summary || null;
+                const firstNameInput = checkoutForm.querySelector('input[name="first_name"]');
+                const lastNameInput = checkoutForm.querySelector('input[name="last_name"]');
+                if (firstNameInput) {
+                    firstNameInput.value = '';
+                }
+                if (lastNameInput) {
+                    lastNameInput.value = '';
+                }
                 startPaymentStatusPolling(payload.order_id);
                 openPaymentModal();
             } catch (error) {
