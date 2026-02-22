@@ -29,7 +29,6 @@
     const productCounts = getJson('chart-product-counts', []);
     const paymentLabels = getJson('chart-payment-labels', []);
     const paymentTotals = getJson('chart-payment-totals-data', []);
-    const statusCounter = getJson('chart-status-counter', {});
 
     try {
         new Chart(document.getElementById('chart-products-sold'), {
@@ -70,23 +69,4 @@
         console.error('Falha no gráfico de valor por forma de pagamento:', error);
     }
 
-    try {
-        new Chart(document.getElementById('chart-status'), {
-            type: 'pie',
-            data: {
-                labels: ['Pago + Entregue', 'Pago + Não entregue', 'Não pago'],
-                datasets: [{
-                    data: [
-                        statusCounter.paid_delivered || 0,
-                        statusCounter.paid_undelivered || 0,
-                        statusCounter.unpaid || 0,
-                    ],
-                    backgroundColor: ['#2f8a5c', '#d9a441', '#9b2c2c'],
-                }],
-            },
-            options: { responsive: true, maintainAspectRatio: true, aspectRatio: 2.2 },
-        });
-    } catch (error) {
-        console.error('Falha no gráfico de status:', error);
-    }
 })();
