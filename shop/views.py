@@ -847,7 +847,6 @@ def manage_reports_export_pdf(request):
         from reportlab.lib.styles import getSampleStyleSheet
         from reportlab.lib.units import cm
         from reportlab.graphics.charts.barcharts import VerticalBarChart
-        from reportlab.graphics.charts.piecharts import Pie
         from reportlab.graphics.shapes import Drawing, String
         from reportlab.platypus import Image as RLImage
         from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
@@ -866,15 +865,6 @@ def manage_reports_export_pdf(request):
         total_costs = costs.aggregate(total=Sum('amount')).get('total') or Decimal('0.00')
         net_profit = total_revenue - total_costs
         average_ticket = paid_orders.aggregate(avg=Avg('total')).get('avg') or Decimal('0.00')
-
-        payment_rows = (
-            orders.values('payment_method')
-            .annotate(total=Sum('total'))
-            .order_by('payment_method')
-        )
-        payment_label_map = dict(Order.PAYMENT_CHOICES)
-        chart_payment_labels = [payment_label_map.get(row['payment_method'], row['payment_method']) for row in payment_rows]
-        chart_payment_totals = [float(row['total'] or 0) for row in payment_rows]
 
         product_counter = {}
         for order in paid_orders:
@@ -925,13 +915,13 @@ def manage_reports_export_pdf(request):
         elements.append(summary_table)
         elements.append(Spacer(1, 14))
 
-        products_chart_drawing = Drawing(255, 190)
-        products_chart_drawing.add(String(8, 174, 'Produtos vendidos (quantidade)', fontSize=10))
+        products_chart_drawing = Drawing(520, 220)
+        products_chart_drawing.add(String(8, 202, 'Produtos vendidos (quantidade)', fontSize=11))
         product_chart = VerticalBarChart()
-        product_chart.x = 28
-        product_chart.y = 48
-        product_chart.height = 110
-        product_chart.width = 218
+        product_chart.x = 36
+        product_chart.y = 56
+        product_chart.height = 130
+        product_chart.width = 468
         product_chart.data = [chart_product_counts or [0]]
         product_chart.strokeColor = colors.HexColor('#CCCCCC')
         product_chart.valueAxis.valueMin = 0
@@ -941,41 +931,13 @@ def manage_reports_export_pdf(request):
         product_chart.categoryAxis.labels.angle = 24
         product_chart.categoryAxis.labels.dx = -5
         product_chart.categoryAxis.labels.dy = -14
-        product_chart.categoryAxis.labels.fontSize = 6
+        product_chart.categoryAxis.labels.fontSize = 7
         product_chart.groupSpacing = 8
         product_chart.barSpacing = 2
         product_chart.bars[0].fillColor = colors.HexColor('#19543d')
         products_chart_drawing.add(product_chart)
 
-        payment_chart_drawing = Drawing(255, 190)
-        payment_chart_drawing.add(String(8, 174, 'Valor por forma de pagamento', fontSize=10))
-        donut = Pie()
-        donut.x = 64
-        donut.y = 12
-        donut.width = 120
-        donut.height = 120
-        donut.data = chart_payment_totals or [1]
-        donut.labels = chart_payment_labels or ['Sem dados']
-        donut.slices.strokeWidth = 0.5
-        # Em algumas versoes do reportlab, Pie suporta furo central para estilo "rosca".
-        if hasattr(donut, 'innerRadiusFraction'):
-            donut.innerRadiusFraction = 0.58
-        elif hasattr(donut, 'innerRadius'):
-            donut.innerRadius = 38
-        chart_colors = [
-            colors.HexColor('#19543d'),
-            colors.HexColor('#d9a441'),
-            colors.HexColor('#366f8a'),
-            colors.HexColor('#a04f4f'),
-        ]
-        for index in range(len(donut.data)):
-            donut.slices[index].fillColor = chart_colors[index % len(chart_colors)]
-        payment_chart_drawing.add(donut)
-        label_y = 144
-        for index, label in enumerate(donut.labels):
-            payment_chart_drawing.add(String(14, label_y - (index * 12), f'- {label}', fontSize=8))
-
-        charts_table = Table([[products_chart_drawing, payment_chart_drawing]], colWidths=[8.9 * cm, 8.9 * cm])
+        charts_table = Table([[products_chart_drawing]], colWidths=[17.8 * cm])
         charts_table.setStyle(
             TableStyle(
                 [
