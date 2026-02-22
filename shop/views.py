@@ -200,6 +200,10 @@ def _order_delete_password():
     return os.getenv('ORDER_DELETE_PASSWORD', '1234').strip()
 
 
+def _bulk_mark_paid_password():
+    return os.getenv('BULK_MARK_PAID_PASSWORD', '1234').strip()
+
+
 def _audit_action_label(log):
     path = (log.path or '').lower()
     method = (log.method or '').upper()
@@ -1024,6 +1028,11 @@ def manage_order_delivery_page(request, order_id):
 @user_passes_test(_can_manage)
 @require_POST
 def manage_orders_mark_all_paid_page(request):
+    informed_password = request.POST.get('bulk_paid_password', '').strip()
+    if informed_password != _bulk_mark_paid_password():
+        messages.error(request, 'Senha invalida para marcar todos como pagos.')
+        return redirect('manage_products_page')
+
     unpaid_orders = list(Order.objects.filter(is_paid=False).order_by('id'))
     if not unpaid_orders:
         messages.info(request, 'Todos os pedidos ja estao marcados como pagos.')
