@@ -128,6 +128,10 @@
 
         <section id="secao-pedidos" class="orders-section section-card manage-section">
             <h2>Pedidos recebidos</h2>
+            <form method="post" action="{% url 'manage_orders_mark_all_paid_page' %}" onsubmit="return confirm('Marcar todos os pedidos não pagos como pagos?');" style="margin-bottom: 10px;">
+                {% csrf_token %}
+                <button type="submit" class="add-btn">Marcar todos como pagos</button>
+            </form>
             <input
                 id="orders-search"
                 type="search"

@@ -224,6 +224,8 @@ def _audit_action_label(log):
         return 'Produto excluido'
     if '/manage/orders/page/delivery' in path:
         return 'Atualizacao entrega'
+    if '/manage/orders/page/mark-all-paid' in path:
+        return 'Pedidos marcados como pagos (lote)'
     if '/manage/orders/page/delete' in path:
         return 'Pedido excluido'
     if '/manage/costs/page/create' in path:
@@ -1015,6 +1017,32 @@ def manage_order_delivery_page(request, order_id):
     else:
         messages.error(request, 'Acao invalida para status de entrega.')
 
+    return redirect('manage_products_page')
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_POST
+def manage_orders_mark_all_paid_page(request):
+    unpaid_orders = list(Order.objects.filter(is_paid=False).order_by('id'))
+    if not unpaid_orders:
+        messages.info(request, 'Todos os pedidos ja estao marcados como pagos.')
+        return redirect('manage_products_page')
+
+    updated_count = 0
+    for order in unpaid_orders:
+        order.is_paid = True
+        order.paid_at = timezone.now()
+        update_fields = ['is_paid', 'paid_at']
+        if order.mp_status in {'', 'pending'}:
+            order.mp_status = 'approved_manual'
+            update_fields.append('mp_status')
+        order.save(update_fields=update_fields)
+        updated_count += 1
+        if not order.whatsapp_notified:
+            _send_whatsapp_notifications_for_order(order)
+
+    messages.success(request, f'{updated_count} pedido(s) marcado(s) como pago(s).')
     return redirect('manage_products_page')
 
 

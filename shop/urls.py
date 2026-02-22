@@ -16,6 +16,7 @@ urlpatterns = [
     path('manage/products/page/save/', views.manage_products_save_page, name='manage_products_save_page'),
     path('manage/products/page/delete/<int:product_id>/', views.manage_products_delete_page, name='manage_products_delete_page'),
     path('manage/orders/page/delivery/<int:order_id>/', views.manage_order_delivery_page, name='manage_order_delivery_page'),
+    path('manage/orders/page/mark-all-paid/', views.manage_orders_mark_all_paid_page, name='manage_orders_mark_all_paid_page'),
     path('manage/orders/page/delete/<int:order_id>/', views.manage_order_delete_page, name='manage_order_delete_page'),
     path('manage/users/page/create/', views.manage_users_create_page, name='manage_users_create_page'),
     path('manage/costs/page/create/', views.manage_costs_create_page, name='manage_costs_create_page'),
