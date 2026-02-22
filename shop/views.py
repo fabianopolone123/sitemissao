@@ -851,199 +851,209 @@ def manage_reports_export_pdf(request):
         from reportlab.graphics.shapes import Drawing, String
         from reportlab.platypus import Image as RLImage
         from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-    except Exception:
-        return JsonResponse({'error': 'Dependencia reportlab nao instalada.'}, status=500)
+        from PIL import Image as PILImage
+    except Exception as exc:
+        return JsonResponse({'error': f'Dependencia de PDF indisponivel: {exc}'}, status=500)
 
-    orders = Order.objects.all().order_by('-created_at')
-    paid_orders = orders.filter(is_paid=True)
-    costs = CostEntry.objects.all().order_by('-created_at')
+    try:
+        orders = Order.objects.all().order_by('-created_at')
+        paid_orders = orders.filter(is_paid=True)
+        costs = CostEntry.objects.all().order_by('-created_at')
 
-    total_orders = orders.count()
-    total_paid_orders = paid_orders.count()
-    total_revenue = paid_orders.aggregate(total=Sum('total')).get('total') or Decimal('0.00')
-    total_costs = costs.aggregate(total=Sum('amount')).get('total') or Decimal('0.00')
-    net_profit = total_revenue - total_costs
-    average_ticket = paid_orders.aggregate(avg=Avg('total')).get('avg') or Decimal('0.00')
+        total_orders = orders.count()
+        total_paid_orders = paid_orders.count()
+        total_revenue = paid_orders.aggregate(total=Sum('total')).get('total') or Decimal('0.00')
+        total_costs = costs.aggregate(total=Sum('amount')).get('total') or Decimal('0.00')
+        net_profit = total_revenue - total_costs
+        average_ticket = paid_orders.aggregate(avg=Avg('total')).get('avg') or Decimal('0.00')
 
-    payment_rows = (
-        orders.values('payment_method')
-        .annotate(total=Sum('total'))
-        .order_by('payment_method')
-    )
-    payment_label_map = dict(Order.PAYMENT_CHOICES)
-    chart_payment_labels = [payment_label_map.get(row['payment_method'], row['payment_method']) for row in payment_rows]
-    chart_payment_totals = [float(row['total'] or 0) for row in payment_rows]
-
-    product_counter = {}
-    for order in paid_orders:
-        for item in order.items_json or []:
-            name = (item.get('name') or '').strip() or 'Item'
-            try:
-                qty = int(item.get('quantity', 0) or 0)
-            except (TypeError, ValueError):
-                qty = 0
-            product_counter[name] = product_counter.get(name, 0) + max(qty, 0)
-
-    top_products = sorted(product_counter.items(), key=lambda pair: pair[1], reverse=True)[:10]
-    chart_product_labels = [name[:26] + '...' if len(name) > 26 else name for name, _ in top_products]
-    chart_product_counts = [count for _, count in top_products]
-
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        rightMargin=1.2 * cm,
-        leftMargin=1.2 * cm,
-        topMargin=1.2 * cm,
-        bottomMargin=1.2 * cm,
-    )
-    styles = getSampleStyleSheet()
-    elements = []
-
-    elements.append(Paragraph('Relatorio de Vendas - Missao Andrews', styles['Title']))
-    elements.append(Paragraph(f'Gerado em: {timezone.localtime(timezone.now()).strftime("%d/%m/%Y %H:%M")}', styles['Normal']))
-    elements.append(Spacer(1, 10))
-
-    summary_data = [
-        ['Total de pedidos', str(total_orders), 'Pedidos pagos', str(total_paid_orders)],
-        ['Faturamento', f'R$ {total_revenue:.2f}', 'Custos', f'R$ {total_costs:.2f}'],
-        ['Lucro', f'R$ {net_profit:.2f}', 'Ticket medio', f'R$ {average_ticket:.2f}'],
-    ]
-    summary_table = Table(summary_data, colWidths=[4.2 * cm, 4.2 * cm, 4.2 * cm, 4.2 * cm])
-    summary_table.setStyle(
-        TableStyle(
-            [
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-                ('BACKGROUND', (0, 0), (-1, 0), colors.whitesmoke),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-            ]
+        payment_rows = (
+            orders.values('payment_method')
+            .annotate(total=Sum('total'))
+            .order_by('payment_method')
         )
-    )
-    elements.append(summary_table)
-    elements.append(Spacer(1, 14))
+        payment_label_map = dict(Order.PAYMENT_CHOICES)
+        chart_payment_labels = [payment_label_map.get(row['payment_method'], row['payment_method']) for row in payment_rows]
+        chart_payment_totals = [float(row['total'] or 0) for row in payment_rows]
 
-    products_chart_drawing = Drawing(255, 190)
-    products_chart_drawing.add(String(8, 174, 'Produtos vendidos (quantidade)', fontSize=10))
-    product_chart = VerticalBarChart()
-    product_chart.x = 28
-    product_chart.y = 48
-    product_chart.height = 110
-    product_chart.width = 218
-    product_chart.data = [chart_product_counts or [0]]
-    product_chart.strokeColor = colors.HexColor('#CCCCCC')
-    product_chart.valueAxis.valueMin = 0
-    product_chart.valueAxis.valueMax = max(chart_product_counts) + 2 if chart_product_counts else 1
-    product_chart.valueAxis.valueStep = 1 if (max(chart_product_counts) if chart_product_counts else 0) <= 12 else 2
-    product_chart.categoryAxis.categoryNames = chart_product_labels or ['Sem dados']
-    product_chart.categoryAxis.labels.angle = 24
-    product_chart.categoryAxis.labels.dx = -5
-    product_chart.categoryAxis.labels.dy = -14
-    product_chart.categoryAxis.labels.fontSize = 6
-    product_chart.groupSpacing = 8
-    product_chart.barSpacing = 2
-    product_chart.bars[0].fillColor = colors.HexColor('#19543d')
-    products_chart_drawing.add(product_chart)
-
-    payment_chart_drawing = Drawing(255, 190)
-    payment_chart_drawing.add(String(8, 174, 'Valor por forma de pagamento', fontSize=10))
-    donut = Doughnut()
-    donut.x = 64
-    donut.y = 12
-    donut.width = 120
-    donut.height = 120
-    donut.data = chart_payment_totals or [1]
-    donut.labels = chart_payment_labels or ['Sem dados']
-    donut.slices.strokeWidth = 0.5
-    chart_colors = [
-        colors.HexColor('#19543d'),
-        colors.HexColor('#d9a441'),
-        colors.HexColor('#366f8a'),
-        colors.HexColor('#a04f4f'),
-    ]
-    for index in range(len(donut.data)):
-        donut.slices[index].fillColor = chart_colors[index % len(chart_colors)]
-    payment_chart_drawing.add(donut)
-    label_y = 144
-    for index, label in enumerate(donut.labels):
-        payment_chart_drawing.add(String(14, label_y - (index * 12), f'- {label}', fontSize=8))
-
-    charts_table = Table([[products_chart_drawing, payment_chart_drawing]], colWidths=[8.9 * cm, 8.9 * cm])
-    charts_table.setStyle(
-        TableStyle(
-            [
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E1D9CC')),
-                ('BACKGROUND', (0, 0), (-1, -1), colors.white),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ]
-        )
-    )
-    elements.append(charts_table)
-    elements.append(Spacer(1, 14))
-
-    elements.append(Paragraph('Relacao de custos', styles['Heading2']))
-    if not costs.exists():
-        elements.append(Paragraph('Nenhum custo cadastrado.', styles['Normal']))
-    for cost in costs:
-        elements.append(Paragraph(f'<b>{cost.name}</b> - R$ {cost.amount:.2f}', styles['Normal']))
-        elements.append(Paragraph(f'Data: {timezone.localtime(cost.created_at).strftime("%d/%m/%Y %H:%M")}', styles['Normal']))
-        if cost.receipt_file:
-            receipt_path = cost.receipt_file.path
-            if os.path.exists(receipt_path):
+        product_counter = {}
+        for order in paid_orders:
+            for item in order.items_json or []:
+                name = (item.get('name') or '').strip() or 'Item'
                 try:
-                    img = RLImage(receipt_path)
-                    max_w = 8.0 * cm
-                    max_h = 8.0 * cm
-                    img_w = float(getattr(img, 'imageWidth', 0) or 0)
-                    img_h = float(getattr(img, 'imageHeight', 0) or 0)
-                    if img_w > 0 and img_h > 0:
-                        scale = min(max_w / img_w, max_h / img_h, 1.0)
-                        img.drawWidth = img_w * scale
-                        img.drawHeight = img_h * scale
-                    else:
-                        img.drawWidth = max_w
-                        img.drawHeight = max_h
-                    elements.append(img)
-                except Exception:
-                    elements.append(Paragraph('Comprovante: erro ao carregar imagem.', styles['Normal']))
-        elements.append(Spacer(1, 8))
+                    qty = int(item.get('quantity', 0) or 0)
+                except (TypeError, ValueError):
+                    qty = 0
+                product_counter[name] = product_counter.get(name, 0) + max(qty, 0)
 
-    elements.append(Spacer(1, 6))
-    elements.append(Paragraph('Relacao de pedidos', styles['Heading2']))
-    if not orders.exists():
-        elements.append(Paragraph('Nenhum pedido encontrado.', styles['Normal']))
-    else:
-        order_rows = [['Pedido', 'Cliente', 'Pagamento', 'Valor', 'Data', 'Pago']]
-        for order in orders:
-            order_rows.append(
-                [
-                    f'#{order.id}',
-                    f'{order.first_name} {order.last_name}'.strip(),
-                    order.get_payment_method_display(),
-                    f'R$ {order.total:.2f}',
-                    timezone.localtime(order.created_at).strftime('%d/%m/%Y %H:%M'),
-                    'Sim' if order.is_paid else 'Nao',
-                ]
-            )
-        orders_table = Table(order_rows, repeatRows=1, colWidths=[2.1 * cm, 5.0 * cm, 3.2 * cm, 2.4 * cm, 3.4 * cm, 1.8 * cm])
-        orders_table.setStyle(
+        top_products = sorted(product_counter.items(), key=lambda pair: pair[1], reverse=True)[:10]
+        chart_product_labels = [name[:26] + '...' if len(name) > 26 else name for name, _ in top_products]
+        chart_product_counts = [count for _, count in top_products]
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=1.2 * cm,
+            leftMargin=1.2 * cm,
+            topMargin=1.2 * cm,
+            bottomMargin=1.2 * cm,
+        )
+        styles = getSampleStyleSheet()
+        elements = []
+
+        elements.append(Paragraph('Relatorio de Vendas - Missao Andrews', styles['Title']))
+        elements.append(Paragraph(f'Gerado em: {timezone.localtime(timezone.now()).strftime("%d/%m/%Y %H:%M")}', styles['Normal']))
+        elements.append(Spacer(1, 10))
+
+        summary_data = [
+            ['Total de pedidos', str(total_orders), 'Pedidos pagos', str(total_paid_orders)],
+            ['Faturamento', f'R$ {total_revenue:.2f}', 'Custos', f'R$ {total_costs:.2f}'],
+            ['Lucro', f'R$ {net_profit:.2f}', 'Ticket medio', f'R$ {average_ticket:.2f}'],
+        ]
+        summary_table = Table(summary_data, colWidths=[4.2 * cm, 4.2 * cm, 4.2 * cm, 4.2 * cm])
+        summary_table.setStyle(
             TableStyle(
                 [
-                    ('GRID', (0, 0), (-1, -1), 0.35, colors.lightgrey),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
                     ('BACKGROUND', (0, 0), (-1, 0), colors.whitesmoke),
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                     ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-                    ('FONTSIZE', (0, 0), (-1, -1), 8.5),
                 ]
             )
         )
-        elements.append(orders_table)
+        elements.append(summary_table)
+        elements.append(Spacer(1, 14))
 
-    doc.build(elements)
-    buffer.seek(0)
-    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
-    response['Content-Disposition'] = 'attachment; filename=\"relatorio_vendas_missao_andrews.pdf\"'
-    return response
+        products_chart_drawing = Drawing(255, 190)
+        products_chart_drawing.add(String(8, 174, 'Produtos vendidos (quantidade)', fontSize=10))
+        product_chart = VerticalBarChart()
+        product_chart.x = 28
+        product_chart.y = 48
+        product_chart.height = 110
+        product_chart.width = 218
+        product_chart.data = [chart_product_counts or [0]]
+        product_chart.strokeColor = colors.HexColor('#CCCCCC')
+        product_chart.valueAxis.valueMin = 0
+        product_chart.valueAxis.valueMax = max(chart_product_counts) + 2 if chart_product_counts else 1
+        product_chart.valueAxis.valueStep = 1 if (max(chart_product_counts) if chart_product_counts else 0) <= 12 else 2
+        product_chart.categoryAxis.categoryNames = chart_product_labels or ['Sem dados']
+        product_chart.categoryAxis.labels.angle = 24
+        product_chart.categoryAxis.labels.dx = -5
+        product_chart.categoryAxis.labels.dy = -14
+        product_chart.categoryAxis.labels.fontSize = 6
+        product_chart.groupSpacing = 8
+        product_chart.barSpacing = 2
+        product_chart.bars[0].fillColor = colors.HexColor('#19543d')
+        products_chart_drawing.add(product_chart)
+
+        payment_chart_drawing = Drawing(255, 190)
+        payment_chart_drawing.add(String(8, 174, 'Valor por forma de pagamento', fontSize=10))
+        donut = Doughnut()
+        donut.x = 64
+        donut.y = 12
+        donut.width = 120
+        donut.height = 120
+        donut.data = chart_payment_totals or [1]
+        donut.labels = chart_payment_labels or ['Sem dados']
+        donut.slices.strokeWidth = 0.5
+        chart_colors = [
+            colors.HexColor('#19543d'),
+            colors.HexColor('#d9a441'),
+            colors.HexColor('#366f8a'),
+            colors.HexColor('#a04f4f'),
+        ]
+        for index in range(len(donut.data)):
+            donut.slices[index].fillColor = chart_colors[index % len(chart_colors)]
+        payment_chart_drawing.add(donut)
+        label_y = 144
+        for index, label in enumerate(donut.labels):
+            payment_chart_drawing.add(String(14, label_y - (index * 12), f'- {label}', fontSize=8))
+
+        charts_table = Table([[products_chart_drawing, payment_chart_drawing]], colWidths=[8.9 * cm, 8.9 * cm])
+        charts_table.setStyle(
+            TableStyle(
+                [
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E1D9CC')),
+                    ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ]
+            )
+        )
+        elements.append(charts_table)
+        elements.append(Spacer(1, 14))
+
+        elements.append(Paragraph('Relacao de custos', styles['Heading2']))
+        if not costs.exists():
+            elements.append(Paragraph('Nenhum custo cadastrado.', styles['Normal']))
+        for cost in costs:
+            elements.append(Paragraph(f'<b>{cost.name}</b> - R$ {cost.amount:.2f}', styles['Normal']))
+            elements.append(Paragraph(f'Data: {timezone.localtime(cost.created_at).strftime("%d/%m/%Y %H:%M")}', styles['Normal']))
+            if cost.receipt_file:
+                receipt_path = cost.receipt_file.path
+                if os.path.exists(receipt_path):
+                    try:
+                        with PILImage.open(receipt_path) as pil_img:
+                            pil_img = pil_img.convert('RGB')
+                            pil_img.thumbnail((1100, 1100))
+                            receipt_buffer = io.BytesIO()
+                            pil_img.save(receipt_buffer, format='JPEG', quality=82, optimize=True)
+                            receipt_buffer.seek(0)
+                        img = RLImage(receipt_buffer)
+                        max_w = 8.0 * cm
+                        max_h = 8.0 * cm
+                        img_w = float(getattr(img, 'imageWidth', 0) or 0)
+                        img_h = float(getattr(img, 'imageHeight', 0) or 0)
+                        if img_w > 0 and img_h > 0:
+                            scale = min(max_w / img_w, max_h / img_h, 1.0)
+                            img.drawWidth = img_w * scale
+                            img.drawHeight = img_h * scale
+                        else:
+                            img.drawWidth = max_w
+                            img.drawHeight = max_h
+                        elements.append(img)
+                    except Exception:
+                        elements.append(Paragraph('Comprovante: erro ao carregar imagem.', styles['Normal']))
+            elements.append(Spacer(1, 8))
+
+        elements.append(Spacer(1, 6))
+        elements.append(Paragraph('Relacao de pedidos', styles['Heading2']))
+        if not orders.exists():
+            elements.append(Paragraph('Nenhum pedido encontrado.', styles['Normal']))
+        else:
+            order_rows = [['Pedido', 'Cliente', 'Pagamento', 'Valor', 'Data', 'Pago']]
+            for order in orders:
+                order_rows.append(
+                    [
+                        f'#{order.id}',
+                        f'{order.first_name} {order.last_name}'.strip(),
+                        order.get_payment_method_display(),
+                        f'R$ {order.total:.2f}',
+                        timezone.localtime(order.created_at).strftime('%d/%m/%Y %H:%M'),
+                        'Sim' if order.is_paid else 'Nao',
+                    ]
+                )
+            orders_table = Table(order_rows, repeatRows=1, colWidths=[2.1 * cm, 5.0 * cm, 3.2 * cm, 2.4 * cm, 3.4 * cm, 1.8 * cm])
+            orders_table.setStyle(
+                TableStyle(
+                    [
+                        ('GRID', (0, 0), (-1, -1), 0.35, colors.lightgrey),
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.whitesmoke),
+                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                        ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+                    ]
+                )
+            )
+            elements.append(orders_table)
+
+        doc.build(elements)
+        buffer.seek(0)
+        response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename=\"relatorio_vendas_missao_andrews.pdf\"'
+        return response
+    except Exception as exc:
+        return JsonResponse({'error': f'Falha ao gerar PDF: {exc}'}, status=500)
 
 
 @login_required
