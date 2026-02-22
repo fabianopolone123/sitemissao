@@ -843,10 +843,10 @@ def manage_reports_page(request):
 def manage_reports_export_pdf(request):
     try:
         from reportlab.lib import colors
-        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.pagesizes import A4, landscape
         from reportlab.lib.styles import getSampleStyleSheet
         from reportlab.lib.units import cm
-        from reportlab.graphics.charts.barcharts import VerticalBarChart
+        from reportlab.graphics.charts.barcharts import HorizontalBarChart
         from reportlab.graphics.shapes import Drawing, String
         from reportlab.platypus import Image as RLImage
         from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
@@ -876,14 +876,14 @@ def manage_reports_export_pdf(request):
                     qty = 0
                 product_counter[name] = product_counter.get(name, 0) + max(qty, 0)
 
-        top_products = sorted(product_counter.items(), key=lambda pair: pair[1], reverse=True)[:10]
-        chart_product_labels = [name[:26] + '...' if len(name) > 26 else name for name, _ in top_products]
+        top_products = sorted(product_counter.items(), key=lambda pair: pair[1], reverse=True)[:12]
+        chart_product_labels = [name for name, _ in top_products]
         chart_product_counts = [count for _, count in top_products]
 
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(
             buffer,
-            pagesize=A4,
+            pagesize=landscape(A4),
             rightMargin=1.2 * cm,
             leftMargin=1.2 * cm,
             topMargin=1.2 * cm,
@@ -915,29 +915,30 @@ def manage_reports_export_pdf(request):
         elements.append(summary_table)
         elements.append(Spacer(1, 14))
 
-        products_chart_drawing = Drawing(520, 220)
-        products_chart_drawing.add(String(8, 202, 'Produtos vendidos (quantidade)', fontSize=11))
-        product_chart = VerticalBarChart()
-        product_chart.x = 36
-        product_chart.y = 56
-        product_chart.height = 130
-        product_chart.width = 468
+        products_chart_drawing = Drawing(760, 300)
+        products_chart_drawing.add(String(10, 282, 'Produtos vendidos (quantidade)', fontSize=12))
+        products_chart_drawing.add(String(250, 262, 'Quantidade vendida', fontSize=9))
+
+        product_chart = HorizontalBarChart()
+        product_chart.x = 240
+        product_chart.y = 30
+        product_chart.height = 220
+        product_chart.width = 500
         product_chart.data = [chart_product_counts or [0]]
         product_chart.strokeColor = colors.HexColor('#CCCCCC')
         product_chart.valueAxis.valueMin = 0
         product_chart.valueAxis.valueMax = max(chart_product_counts) + 2 if chart_product_counts else 1
         product_chart.valueAxis.valueStep = 1 if (max(chart_product_counts) if chart_product_counts else 0) <= 12 else 2
         product_chart.categoryAxis.categoryNames = chart_product_labels or ['Sem dados']
-        product_chart.categoryAxis.labels.angle = 24
-        product_chart.categoryAxis.labels.dx = -5
-        product_chart.categoryAxis.labels.dy = -14
-        product_chart.categoryAxis.labels.fontSize = 7
-        product_chart.groupSpacing = 8
+        product_chart.categoryAxis.labels.fontSize = 8
+        product_chart.categoryAxis.labels.boxAnchor = 'e'
+        product_chart.categoryAxis.labels.dx = -4
+        product_chart.groupSpacing = 5
         product_chart.barSpacing = 2
         product_chart.bars[0].fillColor = colors.HexColor('#19543d')
         products_chart_drawing.add(product_chart)
 
-        charts_table = Table([[products_chart_drawing]], colWidths=[17.8 * cm])
+        charts_table = Table([[products_chart_drawing]], colWidths=[26.5 * cm])
         charts_table.setStyle(
             TableStyle(
                 [
