@@ -847,7 +847,7 @@ def manage_reports_export_pdf(request):
         from reportlab.lib.styles import getSampleStyleSheet
         from reportlab.lib.units import cm
         from reportlab.graphics.charts.barcharts import VerticalBarChart
-        from reportlab.graphics.charts.piecharts import Doughnut
+        from reportlab.graphics.charts.piecharts import Pie
         from reportlab.graphics.shapes import Drawing, String
         from reportlab.platypus import Image as RLImage
         from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
@@ -949,7 +949,7 @@ def manage_reports_export_pdf(request):
 
         payment_chart_drawing = Drawing(255, 190)
         payment_chart_drawing.add(String(8, 174, 'Valor por forma de pagamento', fontSize=10))
-        donut = Doughnut()
+        donut = Pie()
         donut.x = 64
         donut.y = 12
         donut.width = 120
@@ -957,6 +957,11 @@ def manage_reports_export_pdf(request):
         donut.data = chart_payment_totals or [1]
         donut.labels = chart_payment_labels or ['Sem dados']
         donut.slices.strokeWidth = 0.5
+        # Em algumas versoes do reportlab, Pie suporta furo central para estilo "rosca".
+        if hasattr(donut, 'innerRadiusFraction'):
+            donut.innerRadiusFraction = 0.58
+        elif hasattr(donut, 'innerRadius'):
+            donut.innerRadius = 38
         chart_colors = [
             colors.HexColor('#19543d'),
             colors.HexColor('#d9a441'),
