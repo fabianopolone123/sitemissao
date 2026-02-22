@@ -128,6 +128,11 @@
 
         <section id="secao-pedidos" class="orders-section section-card manage-section">
             <h2>Pedidos recebidos</h2>
+            <form method="post" action="{% url 'manage_orders_mark_all_paid_page' %}" class="mark-all-paid-form" onsubmit="return confirm('Marcar todos os pedidos não pagos como pagos?');" style="margin-bottom: 10px;">
+                {% csrf_token %}
+                <input type="hidden" name="bulk_paid_password">
+                <button type="submit" class="add-btn">Marcar todos como pagos</button>
+            </form>
             <input
                 id="orders-search"
                 type="search"
@@ -166,14 +171,6 @@
                                 {% endfor %}
                             </ul>
                         </div>
-                        <form method="post" action="{% url 'manage_order_delivery_page' order.id %}" class="order-actions">
-                            {% csrf_token %}
-                            {% if order.is_delivered %}
-                                <button type="submit" name="action" value="mark_undelivered" class="secondary-button">Marcar como não entregue</button>
-                            {% else %}
-                                <button type="submit" name="action" value="mark_delivered" class="add-btn">Marcar como entregue</button>
-                            {% endif %}
-                        </form>
                         <form method="post" action="{% url 'manage_order_delete_page' order.id %}" class="order-actions order-delete-form">
                             {% csrf_token %}
                             <input type="hidden" name="delete_password">
@@ -333,6 +330,18 @@
                         return;
                     }
                     const input = form.querySelector('input[name="delete_password"]');
+                    input.value = password;
+                });
+            });
+
+            document.querySelectorAll('.mark-all-paid-form').forEach((form) => {
+                form.addEventListener('submit', (event) => {
+                    const password = window.prompt('Digite a senha para marcar todos como pagos:');
+                    if (!password) {
+                        event.preventDefault();
+                        return;
+                    }
+                    const input = form.querySelector('input[name="bulk_paid_password"]');
                     input.value = password;
                 });
             });
