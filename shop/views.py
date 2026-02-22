@@ -846,6 +846,9 @@ def manage_reports_export_pdf(request):
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.styles import getSampleStyleSheet
         from reportlab.lib.units import cm
+        from reportlab.graphics.charts.barcharts import VerticalBarChart
+        from reportlab.graphics.charts.piecharts import Doughnut
+        from reportlab.graphics.shapes import Drawing, String
         from reportlab.platypus import Image as RLImage
         from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
     except Exception:
@@ -861,6 +864,29 @@ def manage_reports_export_pdf(request):
     total_costs = costs.aggregate(total=Sum('amount')).get('total') or Decimal('0.00')
     net_profit = total_revenue - total_costs
     average_ticket = paid_orders.aggregate(avg=Avg('total')).get('avg') or Decimal('0.00')
+
+    payment_rows = (
+        orders.values('payment_method')
+        .annotate(total=Sum('total'))
+        .order_by('payment_method')
+    )
+    payment_label_map = dict(Order.PAYMENT_CHOICES)
+    chart_payment_labels = [payment_label_map.get(row['payment_method'], row['payment_method']) for row in payment_rows]
+    chart_payment_totals = [float(row['total'] or 0) for row in payment_rows]
+
+    product_counter = {}
+    for order in paid_orders:
+        for item in order.items_json or []:
+            name = (item.get('name') or '').strip() or 'Item'
+            try:
+                qty = int(item.get('quantity', 0) or 0)
+            except (TypeError, ValueError):
+                qty = 0
+            product_counter[name] = product_counter.get(name, 0) + max(qty, 0)
+
+    top_products = sorted(product_counter.items(), key=lambda pair: pair[1], reverse=True)[:10]
+    chart_product_labels = [name[:26] + '...' if len(name) > 26 else name for name, _ in top_products]
+    chart_product_counts = [count for _, count in top_products]
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -895,6 +921,64 @@ def manage_reports_export_pdf(request):
         )
     )
     elements.append(summary_table)
+    elements.append(Spacer(1, 14))
+
+    products_chart_drawing = Drawing(255, 190)
+    products_chart_drawing.add(String(8, 174, 'Produtos vendidos (quantidade)', fontSize=10))
+    product_chart = VerticalBarChart()
+    product_chart.x = 28
+    product_chart.y = 48
+    product_chart.height = 110
+    product_chart.width = 218
+    product_chart.data = [chart_product_counts or [0]]
+    product_chart.strokeColor = colors.HexColor('#CCCCCC')
+    product_chart.valueAxis.valueMin = 0
+    product_chart.valueAxis.valueMax = max(chart_product_counts) + 2 if chart_product_counts else 1
+    product_chart.valueAxis.valueStep = 1 if (max(chart_product_counts) if chart_product_counts else 0) <= 12 else 2
+    product_chart.categoryAxis.categoryNames = chart_product_labels or ['Sem dados']
+    product_chart.categoryAxis.labels.angle = 24
+    product_chart.categoryAxis.labels.dx = -5
+    product_chart.categoryAxis.labels.dy = -14
+    product_chart.categoryAxis.labels.fontSize = 6
+    product_chart.groupSpacing = 8
+    product_chart.barSpacing = 2
+    product_chart.bars[0].fillColor = colors.HexColor('#19543d')
+    products_chart_drawing.add(product_chart)
+
+    payment_chart_drawing = Drawing(255, 190)
+    payment_chart_drawing.add(String(8, 174, 'Valor por forma de pagamento', fontSize=10))
+    donut = Doughnut()
+    donut.x = 64
+    donut.y = 12
+    donut.width = 120
+    donut.height = 120
+    donut.data = chart_payment_totals or [1]
+    donut.labels = chart_payment_labels or ['Sem dados']
+    donut.slices.strokeWidth = 0.5
+    chart_colors = [
+        colors.HexColor('#19543d'),
+        colors.HexColor('#d9a441'),
+        colors.HexColor('#366f8a'),
+        colors.HexColor('#a04f4f'),
+    ]
+    for index in range(len(donut.data)):
+        donut.slices[index].fillColor = chart_colors[index % len(chart_colors)]
+    payment_chart_drawing.add(donut)
+    label_y = 144
+    for index, label in enumerate(donut.labels):
+        payment_chart_drawing.add(String(14, label_y - (index * 12), f'- {label}', fontSize=8))
+
+    charts_table = Table([[products_chart_drawing, payment_chart_drawing]], colWidths=[8.9 * cm, 8.9 * cm])
+    charts_table.setStyle(
+        TableStyle(
+            [
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E1D9CC')),
+                ('BACKGROUND', (0, 0), (-1, -1), colors.white),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]
+        )
+    )
+    elements.append(charts_table)
     elements.append(Spacer(1, 14))
 
     elements.append(Paragraph('Relacao de custos', styles['Heading2']))
