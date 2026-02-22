@@ -908,8 +908,17 @@ def manage_reports_export_pdf(request):
             if os.path.exists(receipt_path):
                 try:
                     img = RLImage(receipt_path)
-                    img.drawWidth = 4.5 * cm
-                    img.drawHeight = 4.5 * cm
+                    max_w = 8.0 * cm
+                    max_h = 8.0 * cm
+                    img_w = float(getattr(img, 'imageWidth', 0) or 0)
+                    img_h = float(getattr(img, 'imageHeight', 0) or 0)
+                    if img_w > 0 and img_h > 0:
+                        scale = min(max_w / img_w, max_h / img_h, 1.0)
+                        img.drawWidth = img_w * scale
+                        img.drawHeight = img_h * scale
+                    else:
+                        img.drawWidth = max_w
+                        img.drawHeight = max_h
                     elements.append(img)
                 except Exception:
                     elements.append(Paragraph('Comprovante: erro ao carregar imagem.', styles['Normal']))
