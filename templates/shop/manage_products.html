@@ -128,11 +128,6 @@
 
         <section id="secao-pedidos" class="orders-section section-card manage-section">
             <h2>Pedidos recebidos</h2>
-            <form method="post" action="{% url 'manage_orders_mark_all_paid_page' %}" class="mark-all-paid-form" onsubmit="return confirm('Marcar todos os pedidos não pagos como pagos?');" style="margin-bottom: 10px;">
-                {% csrf_token %}
-                <input type="hidden" name="bulk_paid_password">
-                <button type="submit" class="add-btn">Marcar todos como pagos</button>
-            </form>
             <input
                 id="orders-search"
                 type="search"
@@ -338,18 +333,6 @@
                         return;
                     }
                     const input = form.querySelector('input[name="delete_password"]');
-                    input.value = password;
-                });
-            });
-
-            document.querySelectorAll('.mark-all-paid-form').forEach((form) => {
-                form.addEventListener('submit', (event) => {
-                    const password = window.prompt('Digite a senha para marcar todos como pagos:');
-                    if (!password) {
-                        event.preventDefault();
-                        return;
-                    }
-                    const input = form.querySelector('input[name="bulk_paid_password"]');
                     input.value = password;
                 });
             });
