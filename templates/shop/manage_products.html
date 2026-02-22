@@ -128,6 +128,7 @@
 
         <section id="secao-pedidos" class="orders-section section-card manage-section">
             <h2>Pedidos recebidos</h2>
+            <button id="open-manual-order-btn" type="button" class="secondary-button" style="margin-bottom: 10px;">Lançar pedido manual</button>
             <form method="post" action="{% url 'manage_orders_mark_all_paid_page' %}" class="mark-all-paid-form" onsubmit="return confirm('Marcar todos os pedidos não pagos como pagos?');" style="margin-bottom: 10px;">
                 {% csrf_token %}
                 <input type="hidden" name="bulk_paid_password">
@@ -291,12 +292,31 @@
             </div>
         </section>
     </main>
+
+    <div id="manual-order-overlay" class="payment-modal-overlay" hidden></div>
+    <section id="manual-order-modal" class="payment-modal" hidden>
+        <button id="close-manual-order-modal" class="payment-close-btn" type="button">X</button>
+        <h3>Lançar pedido manual</h3>
+        <form class="checkout-form" method="post" action="{% url 'manage_order_manual_create_page' %}">
+            {% csrf_token %}
+            <input type="text" name="amount" placeholder="Valor da venda (ex: 45,90)" required>
+            <input type="password" name="manual_order_password" placeholder="Senha" required>
+            <p class="cart-meta">Produto: Venda de pastel | Pagamento: Pix</p>
+            <button class="add-btn" type="submit" name="launch_another" value="0">Adicionar</button>
+            <button class="secondary-button" type="submit" name="launch_another" value="1">Adicionar e lançar outro</button>
+        </form>
+    </section>
+
     <script>
         (function () {
             const sections = document.querySelectorAll('.manage-section');
             const tabButtons = document.querySelectorAll('.manage-tab-btn');
             const ordersSearch = document.getElementById('orders-search');
             const orderCards = document.querySelectorAll('.order-card');
+            const openManualOrderBtn = document.getElementById('open-manual-order-btn');
+            const manualOrderOverlay = document.getElementById('manual-order-overlay');
+            const manualOrderModal = document.getElementById('manual-order-modal');
+            const closeManualOrderModalBtn = document.getElementById('close-manual-order-modal');
 
             function showSection(targetId) {
                 sections.forEach((section) => {
@@ -310,6 +330,26 @@
             tabButtons.forEach((button) => {
                 button.addEventListener('click', () => showSection(button.dataset.target));
             });
+
+            function openManualOrderModal() {
+                manualOrderOverlay.hidden = false;
+                manualOrderModal.hidden = false;
+            }
+
+            function closeManualOrderModal() {
+                manualOrderOverlay.hidden = true;
+                manualOrderModal.hidden = true;
+            }
+
+            if (openManualOrderBtn) {
+                openManualOrderBtn.addEventListener('click', openManualOrderModal);
+            }
+            if (closeManualOrderModalBtn) {
+                closeManualOrderModalBtn.addEventListener('click', closeManualOrderModal);
+            }
+            if (manualOrderOverlay) {
+                manualOrderOverlay.addEventListener('click', closeManualOrderModal);
+            }
 
             if (ordersSearch) {
                 ordersSearch.addEventListener('input', () => {
@@ -353,6 +393,16 @@
                 window.setTimeout(() => {
                     window.open(printUrl, '_blank', 'noopener,noreferrer');
                 }, 250);
+            }
+
+            const params = new URLSearchParams(window.location.search);
+            const tab = params.get('tab');
+            if (tab) {
+                showSection(tab);
+            }
+            if (params.get('open_manual') === '1') {
+                showSection('secao-pedidos');
+                openManualOrderModal();
             }
         })();
     </script>

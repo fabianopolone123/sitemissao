@@ -204,6 +204,10 @@ def _bulk_mark_paid_password():
     return os.getenv('BULK_MARK_PAID_PASSWORD', '1234').strip()
 
 
+def _manual_order_password():
+    return os.getenv('MANUAL_ORDER_PASSWORD', '1234').strip()
+
+
 def _audit_action_label(log):
     path = (log.path or '').lower()
     method = (log.method or '').upper()
@@ -230,6 +234,8 @@ def _audit_action_label(log):
         return 'Atualizacao entrega'
     if '/manage/orders/page/mark-all-paid' in path:
         return 'Pedidos marcados como pagos (lote)'
+    if '/manage/orders/page/manual-create' in path:
+        return 'Pedido manual lancado'
     if '/manage/orders/page/delete' in path:
         return 'Pedido excluido'
     if '/manage/costs/page/create' in path:
@@ -1044,6 +1050,59 @@ def manage_orders_mark_all_paid_page(request):
 
     messages.success(request, f'{updated_count} pedido(s) marcado(s) como pago(s).')
     return redirect('manage_products_page')
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_POST
+def manage_order_manual_create_page(request):
+    amount_text = request.POST.get('amount', '').strip().replace(',', '.')
+    password = request.POST.get('manual_order_password', '').strip()
+    launch_another = request.POST.get('launch_another', '0').strip() == '1'
+
+    redirect_url = '/manage/products/page/?tab=secao-pedidos'
+    if launch_another:
+        redirect_url += '&open_manual=1'
+
+    if password != _manual_order_password():
+        messages.error(request, 'Senha invalida para lancar pedido manual.')
+        return redirect(redirect_url)
+
+    try:
+        amount = Decimal(amount_text)
+    except (InvalidOperation, ValueError):
+        messages.error(request, 'Valor invalido para pedido manual.')
+        return redirect(redirect_url)
+
+    if amount <= 0:
+        messages.error(request, 'Informe um valor maior que zero.')
+        return redirect(redirect_url)
+
+    amount_str = f'{amount:.2f}'
+    Order.objects.create(
+        first_name='Venda',
+        last_name='Manual',
+        whatsapp='Lancamento interno',
+        payment_method=Order.PAYMENT_PIX,
+        total=amount,
+        pix_code='',
+        mp_status='approved_manual',
+        is_paid=True,
+        paid_at=timezone.now(),
+        created_by_staff=True,
+        items_json=[
+            {
+                'id': 0,
+                'name': 'Venda de pastel',
+                'price': amount_str,
+                'quantity': 1,
+                'subtotal': amount_str,
+                'image_url': '',
+            }
+        ],
+    )
+    messages.success(request, f'Pedido manual lancado com valor R$ {amount_str}.')
+    return redirect(redirect_url)
 
 
 @login_required
