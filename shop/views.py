@@ -1033,23 +1033,14 @@ def manage_orders_mark_all_paid_page(request):
         messages.error(request, 'Senha invalida para marcar todos como pagos.')
         return redirect('manage_products_page')
 
-    unpaid_orders = list(Order.objects.filter(is_paid=False).order_by('id'))
-    if not unpaid_orders:
+    unpaid_ids = list(Order.objects.filter(is_paid=False).values_list('id', flat=True))
+    if not unpaid_ids:
         messages.info(request, 'Todos os pedidos ja estao marcados como pagos.')
         return redirect('manage_products_page')
 
-    updated_count = 0
-    for order in unpaid_orders:
-        order.is_paid = True
-        order.paid_at = timezone.now()
-        update_fields = ['is_paid', 'paid_at']
-        if order.mp_status in {'', 'pending'}:
-            order.mp_status = 'approved_manual'
-            update_fields.append('mp_status')
-        order.save(update_fields=update_fields)
-        updated_count += 1
-        if not order.whatsapp_notified:
-            _send_whatsapp_notifications_for_order(order)
+    now = timezone.now()
+    updated_count = Order.objects.filter(id__in=unpaid_ids).update(is_paid=True, paid_at=now)
+    Order.objects.filter(id__in=unpaid_ids, mp_status__in=['', 'pending']).update(mp_status='approved_manual')
 
     messages.success(request, f'{updated_count} pedido(s) marcado(s) como pago(s).')
     return redirect('manage_products_page')
