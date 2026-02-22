@@ -60,34 +60,6 @@
         </section>
 
         <section class="section-card report-delivered-compact" style="margin-top: 14px;">
-            <p class="panel-subtitle">Relação de pedidos entregues</p>
-            <div class="panel-list">
-                {% for order in delivered_orders %}
-                    <article class="panel-row {% if order.is_paid %}panel-row-active{% else %}panel-row-inactive{% endif %}">
-                        <div>
-                            <strong>Pedido #{{ order.id }}</strong>
-                            <div class="cart-meta">Cliente: {{ order.first_name }} {{ order.last_name }}</div>
-                            <div class="cart-meta">Telefone: {{ order.whatsapp }}</div>
-                            <div class="cart-meta">Pagamento: {{ order.get_payment_method_display }}</div>
-                            <div class="cart-meta">Total: R$ {{ order.total }}</div>
-                            <div class="cart-meta">Entrega: {% if order.delivered_at %}{{ order.delivered_at|date:"d/m/Y H:i" }}{% else %}-{% endif %}</div>
-                            <div class="cart-meta">
-                                Status pagamento:
-                                {% if order.is_paid %}
-                                    <span class="status-chip status-chip-active">Pago</span>
-                                {% else %}
-                                    <span class="status-chip status-chip-inactive">Não pago</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </article>
-                {% empty %}
-                    <p>Nenhum pedido entregue.</p>
-                {% endfor %}
-            </div>
-        </section>
-
-        <section class="section-card report-delivered-compact" style="margin-top: 14px;">
             <p class="panel-subtitle">Resumo de pedidos</p>
             <div class="panel-list">
                 {% for order in recent_orders %}
