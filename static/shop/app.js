@@ -310,6 +310,9 @@
                 currentPixCode = payload.pix_code;
                 currentOrderSummary = payload.order_summary || null;
                 currentPrintUrl = payload.print_url || '';
+                if (!currentPrintUrl && payload.order_id) {
+                    currentPrintUrl = `/orders/print/${payload.order_id}/`;
+                }
                 if (printOrderTicketButton) {
                     printOrderTicketButton.hidden = !currentPrintUrl;
                 }

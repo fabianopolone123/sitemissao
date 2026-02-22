@@ -1036,7 +1036,10 @@ def manage_order_print_page(request, order_id):
 @require_GET
 def order_print_public_page(request, order_id):
     token = request.GET.get('token', '').strip()
-    if not _is_valid_public_print_token(order_id, token):
+    is_valid_token = _is_valid_public_print_token(order_id, token)
+    session_order_id = request.session.get('last_public_print_order_id')
+    has_session_access = str(session_order_id or '') == str(order_id)
+    if not is_valid_token and not has_session_access:
         return HttpResponseForbidden('Token de impressao invalido.')
 
     order = get_object_or_404(Order, id=order_id)
@@ -1312,6 +1315,7 @@ def checkout_finalize(request):
         _send_whatsapp_notifications_for_order(order)
 
     request.session['cart'] = {}
+    request.session['last_public_print_order_id'] = order.id
     request.session.modified = True
 
     order_summary = {
