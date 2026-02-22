@@ -1,4 +1,4 @@
-{% load static %}
+﻿{% load static %}
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -50,8 +50,8 @@
 
         <section class="section-card report-charts-grid">
             <article class="report-card">
-                <p class="panel-subtitle">Pedidos por forma de pagamento</p>
-                <canvas id="chart-payment-methods"></canvas>
+                <p class="panel-subtitle">Produtos vendidos (quantidade)</p>
+                <canvas id="chart-products-sold"></canvas>
             </article>
             <article class="report-card">
                 <p class="panel-subtitle">Valor por forma de pagamento</p>
@@ -90,10 +90,36 @@
                 {% endfor %}
             </div>
         </section>
+
+        <section class="section-card report-delivered-compact" style="margin-top: 14px;">
+            <p class="panel-subtitle">Resumo de pedidos</p>
+            <div class="panel-list">
+                {% for order in recent_orders %}
+                    <article class="panel-row {% if order.is_paid %}panel-row-active{% else %}panel-row-inactive{% endif %}">
+                        <div>
+                            <strong>Pedido #{{ order.id }}</strong>
+                            <div class="cart-meta">Valor: R$ {{ order.total|floatformat:2 }}</div>
+                            <div class="cart-meta">Pagamento: {{ order.get_payment_method_display }}</div>
+                            <div class="cart-meta">Data: {{ order.created_at|date:"d/m/Y H:i" }}</div>
+                            <div class="cart-meta">
+                                {% if order.is_paid %}
+                                    <span class="status-chip status-chip-active">Pago</span>
+                                {% else %}
+                                    <span class="status-chip status-chip-inactive">Não pago</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </article>
+                {% empty %}
+                    <p>Nenhum pedido encontrado.</p>
+                {% endfor %}
+            </div>
+        </section>
     </main>
 
+    {{ chart_product_labels|json_script:"chart-product-labels" }}
+    {{ chart_product_counts|json_script:"chart-product-counts" }}
     {{ chart_payment_labels|json_script:"chart-payment-labels" }}
-    {{ chart_payment_counts|json_script:"chart-payment-counts" }}
     {{ chart_payment_totals|json_script:"chart-payment-totals-data" }}
     {{ status_counter|json_script:"chart-status-counter" }}
 

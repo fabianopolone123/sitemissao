@@ -752,6 +752,7 @@ def manage_sales_page(request):
 def manage_reports_page(request):
     orders = Order.objects.all()
     paid_orders = orders.filter(is_paid=True)
+    recent_orders = orders.order_by('-created_at')[:120]
     delivered_orders = orders.filter(is_delivered=True).order_by('-delivered_at', '-id')[:80]
     total_costs = CostEntry.objects.aggregate(total=Sum('amount')).get('total') or Decimal('0.00')
     total_orders = orders.count()
@@ -772,13 +773,26 @@ def manage_reports_page(request):
 
     payment_rows = (
         orders.values('payment_method')
-        .annotate(count=Count('id'), total=Sum('total'))
+        .annotate(total=Sum('total'))
         .order_by('payment_method')
     )
     payment_label_map = dict(Order.PAYMENT_CHOICES)
     chart_payment_labels = [payment_label_map.get(row['payment_method'], row['payment_method']) for row in payment_rows]
-    chart_payment_counts = [row['count'] for row in payment_rows]
     chart_payment_totals = [float(row['total'] or 0) for row in payment_rows]
+
+    product_counter = {}
+    for order in paid_orders:
+        for item in order.items_json or []:
+            name = (item.get('name') or '').strip() or 'Item'
+            try:
+                qty = int(item.get('quantity', 0) or 0)
+            except (TypeError, ValueError):
+                qty = 0
+            product_counter[name] = product_counter.get(name, 0) + max(qty, 0)
+
+    top_products = sorted(product_counter.items(), key=lambda pair: pair[1], reverse=True)[:15]
+    chart_product_labels = [name for name, _ in top_products]
+    chart_product_counts = [count for _, count in top_products]
 
     status_rows = (
         orders.values('is_paid', 'is_delivered')
@@ -811,11 +825,13 @@ def manage_reports_page(request):
             'chart_daily_labels': chart_daily_labels,
             'chart_daily_values': chart_daily_values,
             'chart_daily_counts': chart_daily_counts,
+            'chart_product_labels': chart_product_labels,
+            'chart_product_counts': chart_product_counts,
             'chart_payment_labels': chart_payment_labels,
-            'chart_payment_counts': chart_payment_counts,
             'chart_payment_totals': chart_payment_totals,
             'status_counter': status_counter,
             'delivered_orders': delivered_orders,
+            'recent_orders': recent_orders,
         },
     )
 
