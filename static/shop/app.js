@@ -18,7 +18,7 @@
     const paymentModal = document.getElementById('payment-modal');
     const closePaymentModalButton = document.getElementById('close-payment-modal');
     const copyPixCodeButton = document.getElementById('copy-pix-code');
-    const printOrderTicketButton = document.getElementById('print-order-ticket');
+    let printOrderTicketButton = document.getElementById('print-order-ticket');
     const paymentMessage = document.getElementById('payment-message');
     const paymentStatusLabel = document.getElementById('payment-status-label');
     const paymentQr = document.getElementById('payment-qr');
@@ -103,6 +103,17 @@
 
     function openPaymentModal() {
         closeCart();
+        if (!printOrderTicketButton) {
+            const dynamicButton = document.createElement('button');
+            dynamicButton.id = 'print-order-ticket';
+            dynamicButton.type = 'button';
+            dynamicButton.className = 'add-btn';
+            dynamicButton.hidden = true;
+            dynamicButton.textContent = 'Imprimir pedido';
+            paymentModal.appendChild(dynamicButton);
+            dynamicButton.addEventListener('click', printOrderTicket);
+            printOrderTicketButton = dynamicButton;
+        }
         paymentOverlay.hidden = false;
         paymentModal.hidden = false;
     }
@@ -299,7 +310,9 @@
                 currentPixCode = payload.pix_code;
                 currentOrderSummary = payload.order_summary || null;
                 currentPrintUrl = payload.print_url || '';
-                printOrderTicketButton.hidden = !currentPrintUrl;
+                if (printOrderTicketButton) {
+                    printOrderTicketButton.hidden = !currentPrintUrl;
+                }
                 const firstNameInput = checkoutForm.querySelector('input[name="first_name"]');
                 const lastNameInput = checkoutForm.querySelector('input[name="last_name"]');
                 if (firstNameInput) {
@@ -368,7 +381,9 @@
     closePaymentModalButton.addEventListener('click', closePaymentModal);
     paymentOverlay.addEventListener('click', closePaymentModal);
     copyPixCodeButton.addEventListener('click', copyPixCode);
-    printOrderTicketButton.addEventListener('click', printOrderTicket);
+    if (printOrderTicketButton) {
+        printOrderTicketButton.addEventListener('click', printOrderTicket);
+    }
     closeSuccessModalButton.addEventListener('click', closeSuccessModal);
     successOkButton.addEventListener('click', closeSuccessModal);
     successOverlay.addEventListener('click', closeSuccessModal);
