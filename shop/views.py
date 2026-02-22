@@ -1,5 +1,6 @@
 ﻿import hashlib
 import hmac
+import io
 import json
 import os
 import random
@@ -15,7 +16,7 @@ from django.core import signing
 from django.core.signing import BadSignature, SignatureExpired
 from django.db.models import Avg, Count, Sum
 from django.db.models.functions import TruncDate
-from django.http import HttpResponseForbidden, JsonResponse
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -839,6 +840,122 @@ def manage_reports_page(request):
 @login_required
 @user_passes_test(_can_manage)
 @require_GET
+def manage_reports_export_pdf(request):
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib.units import cm
+        from reportlab.platypus import Image as RLImage
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    except Exception:
+        return JsonResponse({'error': 'Dependencia reportlab nao instalada.'}, status=500)
+
+    orders = Order.objects.all().order_by('-created_at')
+    paid_orders = orders.filter(is_paid=True)
+    costs = CostEntry.objects.all().order_by('-created_at')
+
+    total_orders = orders.count()
+    total_paid_orders = paid_orders.count()
+    total_revenue = paid_orders.aggregate(total=Sum('total')).get('total') or Decimal('0.00')
+    total_costs = costs.aggregate(total=Sum('amount')).get('total') or Decimal('0.00')
+    net_profit = total_revenue - total_costs
+    average_ticket = paid_orders.aggregate(avg=Avg('total')).get('avg') or Decimal('0.00')
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=1.2 * cm,
+        leftMargin=1.2 * cm,
+        topMargin=1.2 * cm,
+        bottomMargin=1.2 * cm,
+    )
+    styles = getSampleStyleSheet()
+    elements = []
+
+    elements.append(Paragraph('Relatorio de Vendas - Missao Andrews', styles['Title']))
+    elements.append(Paragraph(f'Gerado em: {timezone.localtime(timezone.now()).strftime("%d/%m/%Y %H:%M")}', styles['Normal']))
+    elements.append(Spacer(1, 10))
+
+    summary_data = [
+        ['Total de pedidos', str(total_orders), 'Pedidos pagos', str(total_paid_orders)],
+        ['Faturamento', f'R$ {total_revenue:.2f}', 'Custos', f'R$ {total_costs:.2f}'],
+        ['Lucro', f'R$ {net_profit:.2f}', 'Ticket medio', f'R$ {average_ticket:.2f}'],
+    ]
+    summary_table = Table(summary_data, colWidths=[4.2 * cm, 4.2 * cm, 4.2 * cm, 4.2 * cm])
+    summary_table.setStyle(
+        TableStyle(
+            [
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.whitesmoke),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ]
+        )
+    )
+    elements.append(summary_table)
+    elements.append(Spacer(1, 14))
+
+    elements.append(Paragraph('Relacao de custos', styles['Heading2']))
+    if not costs.exists():
+        elements.append(Paragraph('Nenhum custo cadastrado.', styles['Normal']))
+    for cost in costs:
+        elements.append(Paragraph(f'<b>{cost.name}</b> - R$ {cost.amount:.2f}', styles['Normal']))
+        elements.append(Paragraph(f'Data: {timezone.localtime(cost.created_at).strftime("%d/%m/%Y %H:%M")}', styles['Normal']))
+        if cost.receipt_file:
+            receipt_path = cost.receipt_file.path
+            if os.path.exists(receipt_path):
+                try:
+                    img = RLImage(receipt_path)
+                    img.drawWidth = 4.5 * cm
+                    img.drawHeight = 4.5 * cm
+                    elements.append(img)
+                except Exception:
+                    elements.append(Paragraph('Comprovante: erro ao carregar imagem.', styles['Normal']))
+        elements.append(Spacer(1, 8))
+
+    elements.append(Spacer(1, 6))
+    elements.append(Paragraph('Relacao de pedidos', styles['Heading2']))
+    if not orders.exists():
+        elements.append(Paragraph('Nenhum pedido encontrado.', styles['Normal']))
+    else:
+        order_rows = [['Pedido', 'Cliente', 'Pagamento', 'Valor', 'Data', 'Pago']]
+        for order in orders:
+            order_rows.append(
+                [
+                    f'#{order.id}',
+                    f'{order.first_name} {order.last_name}'.strip(),
+                    order.get_payment_method_display(),
+                    f'R$ {order.total:.2f}',
+                    timezone.localtime(order.created_at).strftime('%d/%m/%Y %H:%M'),
+                    'Sim' if order.is_paid else 'Nao',
+                ]
+            )
+        orders_table = Table(order_rows, repeatRows=1, colWidths=[2.1 * cm, 5.0 * cm, 3.2 * cm, 2.4 * cm, 3.4 * cm, 1.8 * cm])
+        orders_table.setStyle(
+            TableStyle(
+                [
+                    ('GRID', (0, 0), (-1, -1), 0.35, colors.lightgrey),
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+                ]
+            )
+        )
+        elements.append(orders_table)
+
+    doc.build(elements)
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename=\"relatorio_vendas_missao_andrews.pdf\"'
+    return response
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_GET
 def manage_audit_page(request):
     logs = AuditLog.objects.select_related('user').all()
 
@@ -1499,5 +1616,6 @@ def payments_webhook(request):
     _sync_order_from_mp_payment(order, payment_data)
     return JsonResponse({'ok': True})
 
+
 
 

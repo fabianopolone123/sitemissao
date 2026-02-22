@@ -9,6 +9,7 @@ urlpatterns = [
     path('manage/products/page/', views.manage_products_page, name='manage_products_page'),
     path('manage/sales/page/', views.manage_sales_page, name='manage_sales_page'),
     path('manage/reports/page/', views.manage_reports_page, name='manage_reports_page'),
+    path('manage/reports/export-pdf/', views.manage_reports_export_pdf, name='manage_reports_export_pdf'),
     path('manage/audit/page/', views.manage_audit_page, name='manage_audit_page'),
     path('manage/sales/create/', views.manage_sales_create_order, name='manage_sales_create_order'),
     path('manage/sales/mark-paid/<int:order_id>/', views.manage_sales_mark_paid, name='manage_sales_mark_paid'),
