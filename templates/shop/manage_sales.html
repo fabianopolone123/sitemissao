@@ -18,6 +18,9 @@
     <header class="manage-header">
         <h1>Venda automatica</h1>
         <div class="manage-header-actions">
+            <button id="open-sale-cart" class="cart-button sale-cart-toggle" type="button">
+                Carrinho <span id="sale-cart-count" class="cart-count-badge">0</span>
+            </button>
             <a class="secondary-button link-button" href="{% url 'manage_products_page' %}">Voltar ao painel</a>
         </div>
     </header>
@@ -57,8 +60,11 @@
             </div>
         </section>
 
-        <section class="section-card sales-summary-card">
-            <p class="panel-subtitle">Carrinho da venda</p>
+        <section id="sale-summary-card" class="section-card sales-summary-card">
+            <div class="sales-summary-head">
+                <p class="panel-subtitle">Carrinho da venda</p>
+                <button id="close-sale-cart" type="button" class="secondary-button sale-cart-close-btn">Fechar</button>
+            </div>
             <p class="cart-meta sales-hint">Fluxo para tablet: finalize e escolha entre Pix, Cartao ou Dinheiro.</p>
             <div id="sale-cart-items" class="sidebar-items"></div>
             <p>Total: <strong id="sale-cart-total">R$ 0.00</strong></p>
@@ -71,6 +77,8 @@
             </form>
         </section>
     </main>
+
+    <div id="sale-cart-overlay" class="overlay"></div>
 
     <div id="payment-choice-overlay" class="payment-modal-overlay" hidden></div>
     <section id="payment-choice-modal" class="payment-modal payment-choice-modal" hidden>

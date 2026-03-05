@@ -529,6 +529,12 @@ h1 {
     padding: 18px;
 }
 
+.manage-header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
 .manage-header h1 {
     margin: 0;
     font-size: clamp(1.3rem, 3vw, 2rem);
@@ -557,6 +563,21 @@ h1 {
     height: fit-content;
     max-height: calc(100vh - 24px);
     overflow: auto;
+}
+
+.sales-summary-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.sale-cart-close-btn {
+    display: none;
+}
+
+.sale-cart-toggle {
+    display: none;
 }
 
 .sales-hint {
@@ -764,9 +785,33 @@ h1 {
     }
 
     .sales-summary-card {
-        position: static;
+        position: fixed;
+        right: 0;
+        top: 0;
+        z-index: 95;
+        height: 100vh;
+        width: min(420px, 94vw);
         max-height: none;
-        overflow: visible;
+        overflow: auto;
+        border-radius: 0;
+        transform: translateX(100%);
+        transition: transform 0.25s ease;
+        box-shadow: -10px 0 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .sales-summary-card.open {
+        transform: translateX(0);
+    }
+
+    .sale-cart-close-btn,
+    .sale-cart-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .sales-cart-open {
+        overflow: hidden;
     }
 }
 
