@@ -592,6 +592,14 @@ h1 {
     min-height: 46px;
 }
 
+.sales-product .variant-select {
+    margin-top: auto;
+}
+
+.sales-product .qty-control {
+    margin-top: 0;
+}
+
 .payment-choice-modal {
     width: min(94vw, 520px);
 }

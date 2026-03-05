@@ -36,16 +36,14 @@
                             <h2>{{ product.name }}</h2>
                             <p>{{ product.description }}</p>
                             <strong class="product-price" data-base-price="{{ product.price }}">R$ {{ product.price }}</strong>
-                            {% if product.active_variants %}
-                                <select class="variant-select">
-                                    <option value="">Sem variacao</option>
-                                    {% for variant in product.active_variants %}
-                                        <option value="{{ variant.id }}" data-name="{{ variant.name }}" data-price="{{ variant.price }}">
-                                            {{ variant.name }} - R$ {{ variant.price }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            {% endif %}
+                            <select class="variant-select"{% if not product.active_variants %} disabled{% endif %}>
+                                <option value="">Sem variacao</option>
+                                {% for variant in product.active_variants %}
+                                    <option value="{{ variant.id }}" data-name="{{ variant.name }}" data-price="{{ variant.price }}">
+                                        {{ variant.name }} - R$ {{ variant.price }}
+                                    </option>
+                                {% endfor %}
+                            </select>
                             <div class="qty-control">
                                 <button type="button" class="qty-btn" data-action="minus">-</button>
                                 <input type="number" min="1" value="1" class="qty-input">
