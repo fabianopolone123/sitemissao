@@ -212,6 +212,10 @@ def _bulk_mark_paid_password():
     return os.getenv('BULK_MARK_PAID_PASSWORD', '1234').strip()
 
 
+def _bulk_mark_delivered_password():
+    return os.getenv('BULK_MARK_DELIVERED_PASSWORD', '123').strip()
+
+
 def _manual_order_password():
     return os.getenv('MANUAL_ORDER_PASSWORD', '1234').strip()
 
@@ -242,6 +246,8 @@ def _audit_action_label(log):
         return 'Atualizacao entrega'
     if '/manage/orders/page/mark-all-paid' in path:
         return 'Pedidos marcados como pagos (lote)'
+    if '/manage/orders/page/mark-all-delivered' in path:
+        return 'Pedidos marcados como entregues (lote)'
     if '/manage/orders/page/mark-paid' in path:
         return 'Pedido marcado como pago'
     if '/manage/orders/page/manual-create' in path:
@@ -1262,6 +1268,26 @@ def manage_orders_mark_all_paid_page(request):
     Order.objects.filter(id__in=unpaid_ids, mp_status__in=['', 'pending']).update(mp_status='approved_manual')
 
     messages.success(request, f'{updated_count} pedido(s) marcado(s) como pago(s).')
+    return redirect('manage_products_page')
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_POST
+def manage_orders_mark_all_delivered_page(request):
+    informed_password = request.POST.get('bulk_delivered_password', '').strip()
+    if informed_password != _bulk_mark_delivered_password():
+        messages.error(request, 'Senha invalida para marcar todos como entregues.')
+        return redirect('manage_products_page')
+
+    pending_ids = list(Order.objects.filter(is_delivered=False).values_list('id', flat=True))
+    if not pending_ids:
+        messages.info(request, 'Todos os pedidos ja estao marcados como entregues.')
+        return redirect('manage_products_page')
+
+    now = timezone.now()
+    updated_count = Order.objects.filter(id__in=pending_ids).update(is_delivered=True, delivered_at=now)
+    messages.success(request, f'{updated_count} pedido(s) marcado(s) como entregue(s).')
     return redirect('manage_products_page')
 
 

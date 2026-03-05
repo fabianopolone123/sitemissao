@@ -134,6 +134,11 @@
                 <input type="hidden" name="bulk_paid_password">
                 <button type="submit" class="add-btn">Marcar todos como pagos</button>
             </form>
+            <form method="post" action="{% url 'manage_orders_mark_all_delivered_page' %}" class="mark-all-delivered-form" onsubmit="return confirm('Marcar todos os pedidos não entregues como entregues?');" style="margin-bottom: 10px;">
+                {% csrf_token %}
+                <input type="hidden" name="bulk_delivered_password">
+                <button type="submit" class="add-btn">Marcar todos como entregue</button>
+            </form>
             <input
                 id="orders-search"
                 type="search"
@@ -177,6 +182,13 @@
                                 <form method="post" action="{% url 'manage_order_mark_paid_page' order.id %}">
                                     {% csrf_token %}
                                     <button type="submit" class="add-btn">Marcar como pago</button>
+                                </form>
+                            {% endif %}
+                            {% if not order.is_delivered %}
+                                <form method="post" action="{% url 'manage_order_delivery_page' order.id %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="mark_delivered">
+                                    <button type="submit" class="secondary-button">Marcar como entregue</button>
                                 </form>
                             {% endif %}
                             <form method="post" action="{% url 'manage_order_delete_page' order.id %}" class="order-delete-form">
@@ -390,6 +402,18 @@
                         return;
                     }
                     const input = form.querySelector('input[name="bulk_paid_password"]');
+                    input.value = password;
+                });
+            });
+
+            document.querySelectorAll('.mark-all-delivered-form').forEach((form) => {
+                form.addEventListener('submit', (event) => {
+                    const password = window.prompt('Digite a senha para marcar todos como entregues:');
+                    if (!password) {
+                        event.preventDefault();
+                        return;
+                    }
+                    const input = form.querySelector('input[name="bulk_delivered_password"]');
                     input.value = password;
                 });
             });

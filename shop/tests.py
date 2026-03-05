@@ -231,3 +231,57 @@ class StoreFlowTests(TestCase):
         self.assertTrue(order.is_paid)
         self.assertIsNotNone(order.paid_at)
         self.assertEqual(order.mp_status, 'approved_manual')
+
+    def test_manage_order_delivery_page_marks_order_delivered(self):
+        order = Order.objects.create(
+            first_name='Cliente',
+            last_name='Entrega',
+            whatsapp='16999997777',
+            payment_method=Order.PAYMENT_PIX,
+            total=Decimal('15.00'),
+            pix_code='',
+            items_json=[{'id': self.product.id, 'name': self.product.name, 'price': '15.00', 'quantity': 1, 'subtotal': '15.00'}],
+            mp_status='pending',
+        )
+
+        self.client.login(username='admin', password='senha-segura')
+        response = self.client.post(
+            reverse('manage_order_delivery_page', args=[order.id]),
+            {'action': 'mark_delivered'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        order.refresh_from_db()
+        self.assertTrue(order.is_delivered)
+        self.assertIsNotNone(order.delivered_at)
+
+    def test_manage_orders_mark_all_delivered_requires_password(self):
+        order = Order.objects.create(
+            first_name='Cliente',
+            last_name='Lote',
+            whatsapp='16999996666',
+            payment_method=Order.PAYMENT_CASH,
+            total=Decimal('12.00'),
+            pix_code='',
+            items_json=[{'id': self.product.id, 'name': self.product.name, 'price': '12.00', 'quantity': 1, 'subtotal': '12.00'}],
+            mp_status='pending',
+            is_delivered=False,
+        )
+
+        self.client.login(username='admin', password='senha-segura')
+        wrong = self.client.post(
+            reverse('manage_orders_mark_all_delivered_page'),
+            {'bulk_delivered_password': '999'},
+        )
+        self.assertEqual(wrong.status_code, 302)
+        order.refresh_from_db()
+        self.assertFalse(order.is_delivered)
+
+        ok = self.client.post(
+            reverse('manage_orders_mark_all_delivered_page'),
+            {'bulk_delivered_password': '123'},
+        )
+        self.assertEqual(ok.status_code, 302)
+        order.refresh_from_db()
+        self.assertTrue(order.is_delivered)
+        self.assertIsNotNone(order.delivered_at)
