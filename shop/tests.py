@@ -149,7 +149,7 @@ class StoreFlowTests(TestCase):
                 'customer_name': 'Venda Balcao',
                 'whatsapp': '16999999999',
                 'payment_method': 'card',
-                'items_json': f'[{{\"product_id\": {self.product.id}, \"quantity\": 2}}]',
+                'items_json': f'[{{\"product_id\": {self.product.id}, \"variant_id\": {self.variant.id}, \"quantity\": 2}}]',
             },
         )
 
@@ -182,7 +182,7 @@ class StoreFlowTests(TestCase):
                 'customer_name': 'Venda Pix',
                 'whatsapp': '16988887777',
                 'payment_method': 'pix',
-                'items_json': f'[{{\"product_id\": {self.product.id}, \"quantity\": 1}}]',
+                'items_json': f'[{{\"product_id\": {self.product.id}, \"variant_id\": {self.variant.id}, \"quantity\": 1}}]',
             },
         )
 
@@ -195,3 +195,18 @@ class StoreFlowTests(TestCase):
         self.assertEqual(order.payment_method, Order.PAYMENT_PIX)
         self.assertFalse(order.is_paid)
         self.assertEqual(order.mp_payment_id, '111222333')
+
+    def test_manage_sales_create_order_requires_variant_when_product_has_variants(self):
+        self.client.login(username='admin', password='senha-segura')
+        response = self.client.post(
+            reverse('manage_sales_create_order'),
+            {
+                'customer_name': 'Sem Variacao',
+                'whatsapp': '16977776666',
+                'payment_method': 'cash',
+                'items_json': f'[{{\"product_id\": {self.product.id}, \"quantity\": 1}}]',
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Selecione uma variacao', response.json()['error'])

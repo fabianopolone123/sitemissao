@@ -152,6 +152,10 @@ def _build_order_items_from_payload(items_payload):
 
     products = Product.objects.filter(id__in=product_ids, active=True).prefetch_related('variants')
     product_map = {product.id: product for product in products}
+    active_variant_ids_by_product = {
+        product.id: {variant.id for variant in product.variants.all() if variant.active}
+        for product in products
+    }
     variants_map = {}
     if variant_ids:
         variants = ProductVariant.objects.filter(id__in=variant_ids, active=True)
@@ -164,6 +168,9 @@ def _build_order_items_from_payload(items_payload):
         product = product_map.get(product_id)
         if not product:
             return None, None, f'Produto {product_id} nao encontrado ou inativo.'
+        product_active_variant_ids = active_variant_ids_by_product.get(product.id, set())
+        if product_active_variant_ids and not variant_id:
+            return None, None, f'Selecione uma variacao para {product.name}.'
         variant = variants_map.get(variant_id) if variant_id else None
         if variant_id and (not variant or variant.product_id != product.id):
             return None, None, f'Variacao invalida para {product.name}.'

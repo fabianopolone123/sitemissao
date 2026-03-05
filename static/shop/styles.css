@@ -592,6 +592,18 @@ h1 {
     margin-top: auto;
 }
 
+.sales-product .variant-select.has-error {
+    border-color: #9b2c2c;
+    box-shadow: 0 0 0 2px rgba(155, 44, 44, 0.12);
+}
+
+.variation-error {
+    margin: 0 0 8px;
+    color: #9b2c2c;
+    font-size: 0.84rem;
+    font-weight: 600;
+}
+
 .sales-product .qty-control {
     margin-top: 0;
 }

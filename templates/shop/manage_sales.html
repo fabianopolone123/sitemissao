@@ -30,20 +30,25 @@
             <p class="panel-subtitle">Produtos para venda</p>
             <div class="products-grid sales-grid">
                 {% for product in products %}
-                    <article class="product-card sales-product" data-product-id="{{ product.id }}" data-product-name="{{ product.name|escape }}">
+                    <article class="product-card sales-product" data-product-id="{{ product.id }}" data-product-name="{{ product.name|escape }}" data-has-variants="{{ product.active_variants|yesno:'true,false' }}">
                         <img src="{{ product.image_source }}" alt="{{ product.name }}">
                         <div class="content">
                             <h2>{{ product.name }}</h2>
                             <p>{{ product.description }}</p>
                             <strong class="product-price" data-base-price="{{ product.price }}">R$ {{ product.price }}</strong>
                             <select class="variant-select"{% if not product.active_variants %} disabled{% endif %}>
-                                <option value="">Sem variacao</option>
-                                {% for variant in product.active_variants %}
-                                    <option value="{{ variant.id }}" data-name="{{ variant.name }}" data-price="{{ variant.price }}">
-                                        {{ variant.name }} - R$ {{ variant.price }}
-                                    </option>
-                                {% endfor %}
+                                {% if product.active_variants %}
+                                    <option value="">Selecione a variacao</option>
+                                    {% for variant in product.active_variants %}
+                                        <option value="{{ variant.id }}" data-name="{{ variant.name }}" data-price="{{ variant.price }}">
+                                            {{ variant.name }} - R$ {{ variant.price }}
+                                        </option>
+                                    {% endfor %}
+                                {% else %}
+                                    <option value="">Sem variacao</option>
+                                {% endif %}
                             </select>
+                            <p class="variation-error" hidden>Selecione uma variacao para adicionar ao carrinho.</p>
                             <div class="qty-control">
                                 <button type="button" class="qty-btn" data-action="minus">-</button>
                                 <input type="number" min="1" value="1" class="qty-input">

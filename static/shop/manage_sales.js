@@ -158,12 +158,41 @@
         cartTotalEl.textContent = `R$ ${formatMoney(total)}`;
     }
 
+    function showVariationError(card) {
+        const errorEl = card.querySelector('.variation-error');
+        const select = card.querySelector('.variant-select');
+        if (errorEl) {
+            errorEl.hidden = false;
+        }
+        if (select) {
+            select.classList.add('has-error');
+            select.focus();
+        }
+    }
+
+    function clearVariationError(card) {
+        const errorEl = card.querySelector('.variation-error');
+        const select = card.querySelector('.variant-select');
+        if (errorEl) {
+            errorEl.hidden = true;
+        }
+        if (select) {
+            select.classList.remove('has-error');
+        }
+    }
+
     function addItemFromCard(card) {
         const productId = Number(card.dataset.productId);
         const productName = card.dataset.productName;
+        const hasVariants = card.dataset.hasVariants === 'true';
         const qtyInput = card.querySelector('.qty-input');
         const select = card.querySelector('.variant-select');
         const quantity = Math.max(1, Number(qtyInput.value || '1'));
+
+        if (hasVariants && (!select || !select.value)) {
+            showVariationError(card);
+            return;
+        }
 
         let variantId = null;
         let variantName = '';
@@ -175,6 +204,7 @@
             variantName = option.dataset.name || '';
             price = parseMoney(option.dataset.price || price);
         }
+        clearVariationError(card);
 
         const itemName = variantName ? `${productName} - ${variantName}` : productName;
 
@@ -228,6 +258,7 @@
             const priceEl = card.querySelector('.product-price');
             if (select) {
                 const updatePrice = () => {
+                    clearVariationError(card);
                     if (!select.value) {
                         priceEl.textContent = `R$ ${formatMoney(priceEl.dataset.basePrice || 0)}`;
                         return;
