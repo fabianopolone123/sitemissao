@@ -103,6 +103,26 @@
         return lines.join('\n');
     }
 
+    function openRawBtIntent(ticketText) {
+        if (!ticketText) {
+            return false;
+        }
+        const payload = encodeURIComponent(ticketText.endsWith('\n') ? ticketText : `${ticketText}\n`);
+        const intentUrl = `intent:${payload}#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;`;
+        try {
+            window.location.href = intentUrl;
+            return true;
+        } catch (error) {
+            // fallback below
+        }
+        try {
+            window.location.href = `rawbt:${payload}`;
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
     function openCart() {
         sidebar.classList.add('open');
         cartOverlay.classList.add('open');
@@ -355,7 +375,7 @@
                 startPaymentStatusPolling(payload.order_id);
                 openPaymentModal();
                 if (androidDevice) {
-                    await shareBluetoothTicket(false);
+                    openRawBtIntent(currentBluetoothTicketText);
                 } else if (currentPrintUrl) {
                     if (pendingPrintWindow) {
                         pendingPrintWindow.location.href = currentPrintUrl;
@@ -467,7 +487,9 @@
     if (bluetoothPrintButton) {
         bluetoothPrintButton.hidden = !isAndroidDevice();
         bluetoothPrintButton.addEventListener('click', () => {
-            shareBluetoothTicket(true);
+            if (!openRawBtIntent(currentBluetoothTicketText)) {
+                shareBluetoothTicket(true);
+            }
         });
     }
     if (printOrderTicketButton) {
