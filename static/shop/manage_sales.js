@@ -284,7 +284,7 @@
                 customer_name: pendingSale.customerName,
                 whatsapp: pendingSale.whatsapp,
                 payment_method: paymentMethod,
-                mark_paid_now: paymentMethod === 'pix' ? 'false' : 'true',
+                mark_paid_now: 'false',
                 items_json: JSON.stringify(
                     saleCart.map((item) => ({
                         product_id: item.product_id,
@@ -309,9 +309,9 @@
                 statusPoller = window.setInterval(pollPixStatus, 5000);
                 pollPixStatus();
             } else {
-                modalTitle.textContent = 'Venda confirmada';
-                modalMessage.textContent = payload.message || `Venda #${payload.order_id} confirmada.`;
-                modalStatus.textContent = 'Pagamento aprovado';
+                modalTitle.textContent = 'Venda criada';
+                modalMessage.textContent = payload.message || `Venda #${payload.order_id} criada.`;
+                modalStatus.textContent = payload.status_label || 'Aguardando pagamento';
                 modalQr.removeAttribute('src');
                 modalQr.hidden = true;
                 copyPixBtn.hidden = true;

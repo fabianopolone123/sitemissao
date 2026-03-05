@@ -141,7 +141,7 @@ class StoreFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-    def test_manage_sales_create_order_card_is_marked_paid(self):
+    def test_manage_sales_create_order_card_defaults_to_unpaid(self):
         self.client.login(username='admin', password='senha-segura')
         response = self.client.post(
             reverse('manage_sales_create_order'),
@@ -155,12 +155,13 @@ class StoreFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
-        self.assertTrue(payload['is_paid'])
+        self.assertFalse(payload['is_paid'])
+        self.assertEqual(payload['status_label'], 'Aguardando pagamento')
 
         order = Order.objects.latest('id')
         self.assertEqual(order.payment_method, Order.PAYMENT_CARD)
-        self.assertTrue(order.is_paid)
-        self.assertEqual(order.mp_status, 'approved_manual')
+        self.assertFalse(order.is_paid)
+        self.assertEqual(order.mp_status, 'pending')
         self.assertTrue(order.created_by_staff)
 
     @patch('shop.views._create_mp_pix_payment')
