@@ -783,6 +783,14 @@ h1 {
 
 .order-actions {
     margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.order-actions form {
+    margin: 0;
 }
 
 @media (max-width: 900px) {

@@ -210,3 +210,24 @@ class StoreFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn('Selecione uma variacao', response.json()['error'])
+
+    def test_manage_order_mark_paid_page_marks_order_paid(self):
+        order = Order.objects.create(
+            first_name='Cliente',
+            last_name='Teste',
+            whatsapp='16999998888',
+            payment_method=Order.PAYMENT_CARD,
+            total=Decimal('20.00'),
+            pix_code='',
+            items_json=[{'id': self.product.id, 'name': self.product.name, 'price': '20.00', 'quantity': 1, 'subtotal': '20.00'}],
+            mp_status='pending',
+        )
+
+        self.client.login(username='admin', password='senha-segura')
+        response = self.client.post(reverse('manage_order_mark_paid_page', args=[order.id]))
+
+        self.assertEqual(response.status_code, 302)
+        order.refresh_from_db()
+        self.assertTrue(order.is_paid)
+        self.assertIsNotNone(order.paid_at)
+        self.assertEqual(order.mp_status, 'approved_manual')

@@ -242,6 +242,8 @@ def _audit_action_label(log):
         return 'Atualizacao entrega'
     if '/manage/orders/page/mark-all-paid' in path:
         return 'Pedidos marcados como pagos (lote)'
+    if '/manage/orders/page/mark-paid' in path:
+        return 'Pedido marcado como pago'
     if '/manage/orders/page/manual-create' in path:
         return 'Pedido manual lancado'
     if '/manage/orders/page/delete' in path:
@@ -1260,6 +1262,30 @@ def manage_orders_mark_all_paid_page(request):
     Order.objects.filter(id__in=unpaid_ids, mp_status__in=['', 'pending']).update(mp_status='approved_manual')
 
     messages.success(request, f'{updated_count} pedido(s) marcado(s) como pago(s).')
+    return redirect('manage_products_page')
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_POST
+def manage_order_mark_paid_page(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    if order.is_paid:
+        messages.info(request, f'Pedido #{order.id} ja esta marcado como pago.')
+        return redirect('manage_products_page')
+
+    order.is_paid = True
+    order.paid_at = timezone.now()
+    if order.mp_status in {'', 'pending', 'in_process'}:
+        order.mp_status = 'approved_manual'
+        order.save(update_fields=['is_paid', 'paid_at', 'mp_status'])
+    else:
+        order.save(update_fields=['is_paid', 'paid_at'])
+
+    if not order.whatsapp_notified:
+        _send_whatsapp_notifications_for_order(order)
+
+    messages.success(request, f'Pedido #{order.id} marcado como pago.')
     return redirect('manage_products_page')
 
 
