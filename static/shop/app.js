@@ -18,6 +18,7 @@
     const paymentModal = document.getElementById('payment-modal');
     const closePaymentModalButton = document.getElementById('close-payment-modal');
     const copyPixCodeButton = document.getElementById('copy-pix-code');
+    const bluetoothPrintButton = document.getElementById('print-bluetooth-ticket');
     let printOrderTicketButton = document.getElementById('print-order-ticket');
     const paymentMessage = document.getElementById('payment-message');
     const paymentStatusLabel = document.getElementById('payment-status-label');
@@ -40,6 +41,7 @@
     let paymentPollInterval = null;
     let currentOrderSummary = null;
     let currentPrintUrl = '';
+    let currentBluetoothTicketText = '';
     let paymentApprovedShown = false;
 
     function csrfToken() {
@@ -76,6 +78,29 @@
             body: data,
         });
         return parseResponse(response);
+    }
+
+    function isAndroidDevice() {
+        return /android/i.test(navigator.userAgent || '');
+    }
+
+    function buildBluetoothTicketText(orderId, summary) {
+        const lines = [
+            'VIA COZINHA',
+            `Pedido #${orderId}`,
+            '',
+            'Itens:',
+        ];
+        const items = (summary && Array.isArray(summary.items)) ? summary.items : [];
+        items.forEach((item) => {
+            const qty = item.quantity || 0;
+            const name = item.name || 'Item';
+            const subtotal = item.subtotal || item.price || '0.00';
+            lines.push(`- ${qty}x ${name} | R$ ${subtotal}`);
+        });
+        lines.push('');
+        lines.push(`Total: R$ ${summary && summary.total ? summary.total : '0.00'}`);
+        return lines.join('\n');
     }
 
     function openCart() {
@@ -294,11 +319,14 @@
         checkoutForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             const formData = new FormData(checkoutForm);
+            const androidDevice = isAndroidDevice();
             let pendingPrintWindow = null;
-            try {
-                pendingPrintWindow = window.open('', '_blank');
-            } catch (error) {
-                pendingPrintWindow = null;
+            if (!androidDevice) {
+                try {
+                    pendingPrintWindow = window.open('', '_blank');
+                } catch (error) {
+                    pendingPrintWindow = null;
+                }
             }
 
             try {
@@ -315,6 +343,7 @@
                 paymentQr.src = `data:image/png;base64,${payload.qr_code_base64}`;
                 currentPixCode = payload.pix_code;
                 currentOrderSummary = payload.order_summary || null;
+                currentBluetoothTicketText = buildBluetoothTicketText(payload.order_id, currentOrderSummary || {});
                 currentPrintUrl = payload.print_url || '';
                 if (!currentPrintUrl && payload.order_id) {
                     currentPrintUrl = `/orders/print/${payload.order_id}/`;
@@ -325,7 +354,9 @@
                 checkoutForm.reset();
                 startPaymentStatusPolling(payload.order_id);
                 openPaymentModal();
-                if (currentPrintUrl) {
+                if (androidDevice) {
+                    await shareBluetoothTicket(false);
+                } else if (currentPrintUrl) {
                     if (pendingPrintWindow) {
                         pendingPrintWindow.location.href = currentPrintUrl;
                     } else {
@@ -374,6 +405,44 @@
         }
     }
 
+    async function shareBluetoothTicket(showFeedbackOnFail = true) {
+        if (!currentBluetoothTicketText) {
+            if (showFeedbackOnFail) {
+                showError('Cupom indisponivel para impressao.');
+            }
+            return false;
+        }
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: `Pedido #${currentOrderId || ''}`,
+                    text: currentBluetoothTicketText,
+                });
+                return true;
+            } catch (error) {
+                if (!showFeedbackOnFail) {
+                    return false;
+                }
+            }
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            try {
+                await navigator.clipboard.writeText(currentBluetoothTicketText);
+                window.alert('Cupom copiado. Cole no app da impressora Bluetooth.');
+                return false;
+            } catch (error) {
+                // segue para mensagem final
+            }
+        }
+
+        if (showFeedbackOnFail) {
+            showError('Nao foi possivel abrir o app de impressao automaticamente.');
+        }
+        return false;
+    }
+
     function printOrderTicket() {
         if (!currentPrintUrl) {
             showError('URL de impressao indisponivel.');
@@ -395,6 +464,12 @@
     closePaymentModalButton.addEventListener('click', closePaymentModal);
     paymentOverlay.addEventListener('click', closePaymentModal);
     copyPixCodeButton.addEventListener('click', copyPixCode);
+    if (bluetoothPrintButton) {
+        bluetoothPrintButton.hidden = !isAndroidDevice();
+        bluetoothPrintButton.addEventListener('click', () => {
+            shareBluetoothTicket(true);
+        });
+    }
     if (printOrderTicketButton) {
         printOrderTicketButton.addEventListener('click', printOrderTicket);
     }
