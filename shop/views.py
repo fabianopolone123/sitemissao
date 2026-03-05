@@ -418,10 +418,8 @@ def _build_order_whatsapp_message(order):
 def _build_order_ready_whatsapp_message(order):
     lines = [
         f'Ola, {order.first_name}!',
-        f'Seu pedido #{order.id} esta pronto para retirada.',
-        f'Total: R$ {order.total:.2f}',
-        '',
-        'Retirada: Colegio Adventista de Sao Carlos',
+        f'boa notickia Seu pedido #{order.id} esta pronto!',
+        '(pedido)',
         'Obrigado por apoiar a Missao Andrews.',
     ]
     return '\n'.join(lines)
