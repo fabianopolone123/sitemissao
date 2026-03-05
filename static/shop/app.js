@@ -316,14 +316,7 @@
                 if (printOrderTicketButton) {
                     printOrderTicketButton.hidden = !currentPrintUrl;
                 }
-                const firstNameInput = checkoutForm.querySelector('input[name="first_name"]');
-                const lastNameInput = checkoutForm.querySelector('input[name="last_name"]');
-                if (firstNameInput) {
-                    firstNameInput.value = '';
-                }
-                if (lastNameInput) {
-                    lastNameInput.value = '';
-                }
+                checkoutForm.reset();
                 startPaymentStatusPolling(payload.order_id);
                 openPaymentModal();
             } catch (error) {

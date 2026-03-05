@@ -190,6 +190,10 @@
                                     <input type="hidden" name="action" value="mark_delivered">
                                     <button type="submit" class="secondary-button">Marcar como entregue</button>
                                 </form>
+                                <form method="post" action="{% url 'manage_order_notify_ready_page' order.id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="secondary-button">Avisar pedido pronto</button>
+                                </form>
                             {% endif %}
                             <form method="post" action="{% url 'manage_order_delete_page' order.id %}" class="order-delete-form">
                                 {% csrf_token %}

@@ -250,6 +250,8 @@ def _audit_action_label(log):
         return 'Pedidos marcados como entregues (lote)'
     if '/manage/orders/page/mark-paid' in path:
         return 'Pedido marcado como pago'
+    if '/manage/orders/page/notify-ready' in path:
+        return 'Notificacao de pedido pronto enviada'
     if '/manage/orders/page/manual-create' in path:
         return 'Pedido manual lancado'
     if '/manage/orders/page/delete' in path:
@@ -410,6 +412,18 @@ def _build_order_whatsapp_message(order):
             'Obrigado! Sua contribuicao ajuda a Missao Andrews a alcancar mais criancas e familias.',
         ]
     )
+    return '\n'.join(lines)
+
+
+def _build_order_ready_whatsapp_message(order):
+    lines = [
+        f'Ola, {order.first_name}!',
+        f'Seu pedido #{order.id} esta pronto para retirada.',
+        f'Total: R$ {order.total:.2f}',
+        '',
+        'Retirada: Colegio Adventista de Sao Carlos',
+        'Obrigado por apoiar a Missao Andrews.',
+    ]
     return '\n'.join(lines)
 
 
@@ -1312,6 +1326,27 @@ def manage_order_mark_paid_page(request, order_id):
         _send_whatsapp_notifications_for_order(order)
 
     messages.success(request, f'Pedido #{order.id} marcado como pago.')
+    return redirect('manage_products_page')
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_POST
+def manage_order_notify_ready_page(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    phone = _normalize_whatsapp_phone(order.whatsapp)
+    if not phone:
+        messages.error(request, f'Pedido #{order.id} sem WhatsApp valido para notificacao.')
+        return redirect('manage_products_page')
+
+    message = _build_order_ready_whatsapp_message(order)
+    try:
+        _wapi_send_text(phone, message)
+    except ValueError as exc:
+        messages.error(request, f'Falha ao enviar WhatsApp do pedido #{order.id}: {exc}')
+        return redirect('manage_products_page')
+
+    messages.success(request, f'Notificacao de pedido pronto enviada para #{order.id}.')
     return redirect('manage_products_page')
 
 

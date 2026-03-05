@@ -274,6 +274,24 @@
         });
     }
 
+    function resetProductSelectionInputs() {
+        document.querySelectorAll('.sales-product').forEach((card) => {
+            const qtyInput = card.querySelector('.qty-input');
+            if (qtyInput) {
+                qtyInput.value = '1';
+            }
+            const select = card.querySelector('.variant-select');
+            if (select && !select.disabled) {
+                select.value = '';
+                clearVariationError(card);
+                const priceEl = card.querySelector('.product-price');
+                if (priceEl) {
+                    priceEl.textContent = `R$ ${formatMoney(priceEl.dataset.basePrice || 0)}`;
+                }
+            }
+        });
+    }
+
     function bindCartActions() {
         cartItemsEl.addEventListener('click', (event) => {
             const button = event.target.closest('[data-cart-action]');
@@ -383,6 +401,7 @@
             saleCart = [];
             pendingSale = null;
             saleForm.reset();
+            resetProductSelectionInputs();
             renderSaleCart();
             openModal();
         } catch (error) {

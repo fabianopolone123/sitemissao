@@ -285,3 +285,25 @@ class StoreFlowTests(TestCase):
         order.refresh_from_db()
         self.assertTrue(order.is_delivered)
         self.assertIsNotNone(order.delivered_at)
+
+    @patch('shop.views._wapi_send_text')
+    def test_manage_order_notify_ready_page_sends_whatsapp(self, send_text_mock):
+        order = Order.objects.create(
+            first_name='Cliente',
+            last_name='Pronto',
+            whatsapp='16999995555',
+            payment_method=Order.PAYMENT_CASH,
+            total=Decimal('25.00'),
+            pix_code='',
+            items_json=[{'id': self.product.id, 'name': self.product.name, 'price': '25.00', 'quantity': 1, 'subtotal': '25.00'}],
+            mp_status='pending',
+        )
+
+        self.client.login(username='admin', password='senha-segura')
+        response = self.client.post(reverse('manage_order_notify_ready_page', args=[order.id]))
+
+        self.assertEqual(response.status_code, 302)
+        send_text_mock.assert_called_once()
+        args, _ = send_text_mock.call_args
+        self.assertEqual(args[0], '5516999995555')
+        self.assertIn(f'#{order.id}', args[1])

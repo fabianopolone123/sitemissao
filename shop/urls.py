@@ -20,6 +20,7 @@ urlpatterns = [
     path('manage/orders/page/mark-all-paid/', views.manage_orders_mark_all_paid_page, name='manage_orders_mark_all_paid_page'),
     path('manage/orders/page/mark-all-delivered/', views.manage_orders_mark_all_delivered_page, name='manage_orders_mark_all_delivered_page'),
     path('manage/orders/page/mark-paid/<int:order_id>/', views.manage_order_mark_paid_page, name='manage_order_mark_paid_page'),
+    path('manage/orders/page/notify-ready/<int:order_id>/', views.manage_order_notify_ready_page, name='manage_order_notify_ready_page'),
     path('manage/orders/page/manual-create/', views.manage_order_manual_create_page, name='manage_order_manual_create_page'),
     path('manage/orders/page/delete/<int:order_id>/', views.manage_order_delete_page, name='manage_order_delete_page'),
     path('manage/users/page/create/', views.manage_users_create_page, name='manage_users_create_page'),
