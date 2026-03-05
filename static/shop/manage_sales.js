@@ -39,6 +39,10 @@
         return input ? input.value : '';
     }
 
+    function isAndroidDevice() {
+        return /android/i.test(navigator.userAgent || '');
+    }
+
     function showError(message) {
         window.alert(message);
     }
@@ -120,7 +124,10 @@
             showError('Nao foi possivel gerar a URL de impressao.');
             return;
         }
-        window.open(printUrl, '_blank', 'noopener,noreferrer');
+        const popup = window.open(printUrl, '_blank', 'noopener,noreferrer');
+        if (!popup) {
+            window.location.href = printUrl;
+        }
     }
 
     function renderSaleCart() {
@@ -376,7 +383,7 @@
 
             currentOrderId = payload.order_id;
             currentPixCode = payload.pix_code || '';
-            printTicketBtn.hidden = !currentOrderId;
+            printTicketBtn.hidden = isAndroidDevice() || !currentOrderId;
 
             if (paymentMethod === 'pix' && payload.qr_code_base64) {
                 modalTitle.textContent = 'Pagamento Pix';
@@ -452,6 +459,9 @@
 
     copyPixBtn.addEventListener('click', onCopyPix);
     printTicketBtn.addEventListener('click', openPrintTicket);
+    if (isAndroidDevice()) {
+        printTicketBtn.hidden = true;
+    }
     closeModalBtn.addEventListener('click', closeModal);
     modalOverlay.addEventListener('click', closeModal);
     openSaleCartBtn.addEventListener('click', openSaleCart);

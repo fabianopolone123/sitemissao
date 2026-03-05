@@ -369,7 +369,7 @@
                     currentPrintUrl = `/orders/print/${payload.order_id}/`;
                 }
                 if (printOrderTicketButton) {
-                    printOrderTicketButton.hidden = !currentPrintUrl;
+                    printOrderTicketButton.hidden = isAndroidDevice() || !currentPrintUrl;
                 }
                 checkoutForm.reset();
                 startPaymentStatusPolling(payload.order_id);
@@ -468,7 +468,10 @@
             showError('URL de impressao indisponivel.');
             return;
         }
-        window.open(currentPrintUrl, '_blank', 'noopener,noreferrer');
+        const popup = window.open(currentPrintUrl, '_blank', 'noopener,noreferrer');
+        if (!popup) {
+            window.location.href = currentPrintUrl;
+        }
     }
 
     openCartButtons.forEach((button) => button.addEventListener('click', openCart));
@@ -493,6 +496,7 @@
         });
     }
     if (printOrderTicketButton) {
+        printOrderTicketButton.hidden = isAndroidDevice();
         printOrderTicketButton.addEventListener('click', printOrderTicket);
     }
     closeSuccessModalButton.addEventListener('click', closeSuccessModal);
