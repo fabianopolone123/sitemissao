@@ -294,6 +294,12 @@
         checkoutForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             const formData = new FormData(checkoutForm);
+            let pendingPrintWindow = null;
+            try {
+                pendingPrintWindow = window.open('', '_blank');
+            } catch (error) {
+                pendingPrintWindow = null;
+            }
 
             try {
                 const payload = await post(checkoutFinalizeUrl, {
@@ -319,7 +325,19 @@
                 checkoutForm.reset();
                 startPaymentStatusPolling(payload.order_id);
                 openPaymentModal();
+                if (currentPrintUrl) {
+                    if (pendingPrintWindow) {
+                        pendingPrintWindow.location.href = currentPrintUrl;
+                    } else {
+                        window.open(currentPrintUrl, '_blank', 'noopener,noreferrer');
+                    }
+                } else if (pendingPrintWindow) {
+                    pendingPrintWindow.close();
+                }
             } catch (error) {
+                if (pendingPrintWindow) {
+                    pendingPrintWindow.close();
+                }
                 showError(error.message);
             }
         });
