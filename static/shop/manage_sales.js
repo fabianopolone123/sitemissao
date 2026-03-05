@@ -33,6 +33,7 @@
     let statusPoller = null;
     let pendingSale = null;
     let creatingSale = false;
+    let currentBluetoothTicketText = '';
 
     function csrfToken() {
         const input = document.querySelector('input[name=csrfmiddlewaretoken]');
@@ -86,6 +87,67 @@
 
     function formatMoney(value) {
         return parseMoney(value).toFixed(2);
+    }
+
+    function buildBluetoothTicketText(orderId, customerName, items, total) {
+        const lines = [
+            'VIA COZINHA',
+            `Pedido #${orderId}`,
+            `Cliente: ${customerName || '-'}`,
+            '',
+            'Itens:',
+        ];
+        (items || []).forEach((item) => {
+            lines.push(`- ${item.quantity}x ${item.name} | R$ ${formatMoney(item.price * item.quantity)}`);
+        });
+        lines.push('');
+        lines.push(`Total: R$ ${formatMoney(total || 0)}`);
+        return lines.join('\n');
+    }
+
+    function openRawBtIntent(ticketText) {
+        if (!ticketText) {
+            return false;
+        }
+        const payload = encodeURIComponent(ticketText.endsWith('\n') ? ticketText : `${ticketText}\n`);
+        const intentUrl = `intent:${payload}#Intent;scheme=rawbt;package=ru.a402d.rawbtprinter;end;`;
+        try {
+            window.location.href = intentUrl;
+            return true;
+        } catch (error) {
+            // fallback below
+        }
+        try {
+            window.location.href = `rawbt:${payload}`;
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    async function shareBluetoothTicketFallback() {
+        if (!currentBluetoothTicketText) {
+            return;
+        }
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: `Pedido #${currentOrderId || ''}`,
+                    text: currentBluetoothTicketText,
+                });
+                return;
+            } catch (error) {
+                // tenta clipboard abaixo
+            }
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            try {
+                await navigator.clipboard.writeText(currentBluetoothTicketText);
+                window.alert('Nao abriu o RawBT automaticamente. Cupom copiado para colar no app.');
+            } catch (error) {
+                window.alert('Nao foi possivel abrir automaticamente o app da impressora.');
+            }
+        }
     }
 
     function openPaymentChoiceModal() {
@@ -367,6 +429,7 @@
         closePaymentChoiceModal();
 
         try {
+            const saleItemsSnapshot = saleCart.map((item) => ({ ...item }));
             const payload = await post(createSaleUrl, {
                 customer_name: pendingSale.customerName,
                 whatsapp: pendingSale.whatsapp,
@@ -383,6 +446,12 @@
 
             currentOrderId = payload.order_id;
             currentPixCode = payload.pix_code || '';
+            currentBluetoothTicketText = buildBluetoothTicketText(
+                payload.order_id,
+                pendingSale.customerName,
+                saleItemsSnapshot,
+                parseMoney(payload.total || 0)
+            );
             printTicketBtn.hidden = isAndroidDevice() || !currentOrderId;
 
             if (paymentMethod === 'pix' && payload.qr_code_base64) {
@@ -411,6 +480,12 @@
             resetProductSelectionInputs();
             renderSaleCart();
             openModal();
+            if (isAndroidDevice()) {
+                const opened = openRawBtIntent(currentBluetoothTicketText);
+                if (!opened) {
+                    shareBluetoothTicketFallback();
+                }
+            }
         } catch (error) {
             showError(error.message);
         } finally {
