@@ -417,10 +417,12 @@ def _build_order_whatsapp_message(order):
 
 def _build_order_ready_whatsapp_message(order):
     lines = [
-        f'Ola, {order.first_name}!',
-        f'boa notickia Seu pedido #{order.id} esta pronto!',
+        f'Olá, {order.first_name}! 😊',
+        '',
+        f'Boa notícia! Seu pedido #{order.id} está pronto!',
         '(pedido)',
-        'Obrigado por apoiar a Missao Andrews.',
+        '',
+        'Obrigado por apoiar a Missão Andrews. 🙏',
     ]
     return '\n'.join(lines)
 
