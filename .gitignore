@@ -12,6 +12,7 @@ venv/
 # Django
 *.log
 staticfiles/
+media/
 
 # OS/Editor
 .DS_Store

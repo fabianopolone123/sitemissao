@@ -1085,6 +1085,8 @@ def manage_sales_create_order(request):
 
     if payment_method not in {Order.PAYMENT_PIX, Order.PAYMENT_CARD, Order.PAYMENT_CASH}:
         return JsonResponse({'error': 'Forma de pagamento invalida.'}, status=400)
+    if payment_method in {Order.PAYMENT_CARD, Order.PAYMENT_CASH}:
+        mark_paid_now = True
 
     try:
         items_payload = json.loads(items_text or '[]')

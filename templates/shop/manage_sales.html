@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vender | Missão Andrews</title>
+    <title>Venda automatica | Missao Andrews</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet">
@@ -12,12 +12,11 @@
 </head>
 <body
     data-create-sale-url="{% url 'manage_sales_create_order' %}"
-    data-mark-paid-template="{% url 'manage_sales_mark_paid' 0 %}"
     data-checkout-status-template="{% url 'checkout_status' 0 %}"
     data-print-order-template="{% url 'manage_order_print_page' 0 %}"
 >
     <header class="manage-header">
-        <h1>Vendas no balcão</h1>
+        <h1>Venda automatica</h1>
         <div class="manage-header-actions">
             <a class="secondary-button link-button" href="{% url 'manage_products_page' %}">Voltar ao painel</a>
         </div>
@@ -36,7 +35,7 @@
                             <strong class="product-price" data-base-price="{{ product.price }}">R$ {{ product.price }}</strong>
                             {% if product.active_variants %}
                                 <select class="variant-select">
-                                    <option value="">Sem variação</option>
+                                    <option value="">Sem variacao</option>
                                     {% for variant in product.active_variants %}
                                         <option value="{{ variant.id }}" data-name="{{ variant.name }}" data-price="{{ variant.price }}">
                                             {{ variant.name }} - R$ {{ variant.price }}
@@ -60,6 +59,7 @@
 
         <section class="section-card sales-summary-card">
             <p class="panel-subtitle">Carrinho da venda</p>
+            <p class="cart-meta sales-hint">Fluxo para tablet: finalize e escolha entre Pix, Cartao ou Dinheiro.</p>
             <div id="sale-cart-items" class="sidebar-items"></div>
             <p>Total: <strong id="sale-cart-total">R$ 0.00</strong></p>
 
@@ -67,20 +67,22 @@
                 {% csrf_token %}
                 <input type="text" name="customer_name" placeholder="Nome completo" required>
                 <input type="text" name="whatsapp" placeholder="WhatsApp" required>
-                <select name="payment_method" id="sale-payment-method" required>
-                    <option value="">Forma de pagamento</option>
-                    <option value="pix">Pix</option>
-                    <option value="card">Cartão</option>
-                    <option value="cash">Dinheiro</option>
-                </select>
-                <label class="checkbox-line" id="mark-paid-wrapper">
-                    <input type="checkbox" name="mark_paid_now">
-                    Marcar como pago agora
-                </label>
-                <button class="add-btn" type="submit">Finalizar venda</button>
+                <button class="add-btn" type="submit">Finalizar e escolher pagamento</button>
             </form>
         </section>
     </main>
+
+    <div id="payment-choice-overlay" class="payment-modal-overlay" hidden></div>
+    <section id="payment-choice-modal" class="payment-modal payment-choice-modal" hidden>
+        <button id="close-payment-choice-modal" class="payment-close-btn" type="button">X</button>
+        <h3>Forma de pagamento</h3>
+        <p>Escolha como o cliente vai pagar esta venda.</p>
+        <div class="payment-choice-grid">
+            <button type="button" class="add-btn payment-choice-btn" data-payment-choice="pix">Pix</button>
+            <button type="button" class="secondary-button payment-choice-btn" data-payment-choice="card">Cartao</button>
+            <button type="button" class="secondary-button payment-choice-btn" data-payment-choice="cash">Dinheiro</button>
+        </div>
+    </section>
 
     <div id="sale-modal-overlay" class="payment-modal-overlay" hidden></div>
     <section id="sale-modal" class="payment-modal" hidden>
@@ -89,8 +91,7 @@
         <p id="sale-modal-message"></p>
         <p id="sale-modal-status" class="cart-meta"></p>
         <img id="sale-modal-qr" alt="QR Code Pix" hidden>
-        <button id="sale-copy-pix" class="add-btn" type="button" hidden>Copiar código Pix</button>
-        <button id="sale-mark-paid-btn" class="secondary-button" type="button" hidden>Marcar como pago</button>
+        <button id="sale-copy-pix" class="add-btn" type="button" hidden>Copiar codigo Pix</button>
         <button id="sale-print-ticket-btn" class="secondary-button" type="button" hidden>Imprimir ficha</button>
     </section>
 

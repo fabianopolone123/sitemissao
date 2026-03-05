@@ -540,19 +540,51 @@ h1 {
 
 .sales-page {
     display: grid;
-    grid-template-columns: 1.3fr 0.9fr;
-    gap: 14px;
+    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.9fr);
+    gap: 16px;
+    align-items: start;
 }
 
 .sales-grid {
     padding: 0;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 14px;
 }
 
 .sales-summary-card {
     position: sticky;
     top: 12px;
     height: fit-content;
+    max-height: calc(100vh - 24px);
+    overflow: auto;
+}
+
+.sales-hint {
+    margin-bottom: 8px;
+}
+
+.sales-product .qty-btn,
+.sales-product .qty-input,
+.sales-product .add-btn,
+.sales-summary-card .add-btn,
+.sales-summary-card .secondary-button {
+    min-height: 46px;
+}
+
+.payment-choice-modal {
+    width: min(94vw, 520px);
+}
+
+.payment-choice-grid {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.payment-choice-btn {
+    width: 100%;
+    min-height: 48px;
 }
 
 .report-summary-grid {
@@ -733,6 +765,8 @@ h1 {
 
     .sales-summary-card {
         position: static;
+        max-height: none;
+        overflow: visible;
     }
 }
 
@@ -770,5 +804,13 @@ h1 {
 
     .manage-page {
         padding: 0 12px 18px;
+    }
+
+    .sales-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .payment-choice-grid {
+        grid-template-columns: 1fr;
     }
 }

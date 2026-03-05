@@ -25,6 +25,7 @@
             <div class="mobile-actions">
                 <button id="open-login-mobile" class="secondary-button" type="button">Login</button>
                 {% if request.user.is_authenticated %}
+                    <a id="open-auto-sales-mobile" class="secondary-button link-button" href="{% url 'manage_sales_page' %}">Venda automática</a>
                     <a id="open-panel-mobile" class="secondary-button link-button" href="{% url 'manage_products_page' %}">Painel</a>
                 {% endif %}
                 <button id="open-cart-mobile" class="cart-button" type="button" data-open-cart>
@@ -36,6 +37,7 @@
         <div class="header-actions">
             <button id="open-login-desktop" class="secondary-button" type="button">Login</button>
             {% if request.user.is_authenticated %}
+                <a id="open-auto-sales-desktop" class="secondary-button link-button" href="{% url 'manage_sales_page' %}">Venda automática</a>
                 <a id="open-panel-desktop" class="secondary-button link-button" href="{% url 'manage_products_page' %}">Painel produtos</a>
             {% endif %}
             <button id="open-cart-desktop" class="cart-button" type="button" data-open-cart>

@@ -1,14 +1,16 @@
 (function () {
     const createSaleUrl = document.body.dataset.createSaleUrl;
-    const markPaidTemplate = document.body.dataset.markPaidTemplate;
     const checkoutStatusTemplate = document.body.dataset.checkoutStatusTemplate;
     const printOrderTemplate = document.body.dataset.printOrderTemplate;
 
     const saleForm = document.getElementById('sale-form');
-    const paymentMethodSelect = document.getElementById('sale-payment-method');
-    const markPaidWrapper = document.getElementById('mark-paid-wrapper');
     const cartItemsEl = document.getElementById('sale-cart-items');
     const cartTotalEl = document.getElementById('sale-cart-total');
+
+    const paymentChoiceOverlay = document.getElementById('payment-choice-overlay');
+    const paymentChoiceModal = document.getElementById('payment-choice-modal');
+    const closePaymentChoiceBtn = document.getElementById('close-payment-choice-modal');
+    const paymentChoiceButtons = document.querySelectorAll('[data-payment-choice]');
 
     const modalOverlay = document.getElementById('sale-modal-overlay');
     const modal = document.getElementById('sale-modal');
@@ -17,7 +19,6 @@
     const modalStatus = document.getElementById('sale-modal-status');
     const modalQr = document.getElementById('sale-modal-qr');
     const copyPixBtn = document.getElementById('sale-copy-pix');
-    const markPaidBtn = document.getElementById('sale-mark-paid-btn');
     const printTicketBtn = document.getElementById('sale-print-ticket-btn');
     const closeModalBtn = document.getElementById('close-sale-modal');
 
@@ -25,6 +26,8 @@
     let currentPixCode = '';
     let currentOrderId = null;
     let statusPoller = null;
+    let pendingSale = null;
+    let creatingSale = false;
 
     function csrfToken() {
         const input = document.querySelector('input[name=csrfmiddlewaretoken]');
@@ -74,6 +77,16 @@
 
     function formatMoney(value) {
         return parseMoney(value).toFixed(2);
+    }
+
+    function openPaymentChoiceModal() {
+        paymentChoiceOverlay.hidden = false;
+        paymentChoiceModal.hidden = false;
+    }
+
+    function closePaymentChoiceModal() {
+        paymentChoiceOverlay.hidden = true;
+        paymentChoiceModal.hidden = true;
     }
 
     function openModal() {
@@ -132,11 +145,6 @@
             })
             .join('');
         cartTotalEl.textContent = `R$ ${formatMoney(total)}`;
-    }
-
-    function refreshPaymentMethodUI() {
-        const method = paymentMethodSelect.value;
-        markPaidWrapper.style.display = method === 'pix' ? 'none' : 'flex';
     }
 
     function addItemFromCard(card) {
@@ -249,7 +257,6 @@
             modalStatus.textContent = payload.status_label || 'Aguardando pagamento';
             if (payload.is_paid) {
                 modalMessage.textContent = `Pagamento aprovado para a venda #${payload.order_id}.`;
-                markPaidBtn.hidden = true;
                 stopPixStatusPolling();
             }
         } catch (error) {
@@ -257,20 +264,27 @@
         }
     }
 
-    async function onSubmitSale(event) {
-        event.preventDefault();
-        if (!saleCart.length) {
-            showError('Adicione itens antes de finalizar a venda.');
+    function collectSaleData() {
+        const formData = new FormData(saleForm);
+        const customerName = String(formData.get('customer_name') || '').trim();
+        const whatsapp = String(formData.get('whatsapp') || '').trim();
+        return { customerName, whatsapp };
+    }
+
+    async function createSaleWithPayment(paymentMethod) {
+        if (creatingSale || !pendingSale) {
             return;
         }
 
-        const formData = new FormData(saleForm);
+        creatingSale = true;
+        closePaymentChoiceModal();
+
         try {
             const payload = await post(createSaleUrl, {
-                customer_name: formData.get('customer_name') || '',
-                whatsapp: formData.get('whatsapp') || '',
-                payment_method: formData.get('payment_method') || '',
-                mark_paid_now: formData.get('mark_paid_now') ? 'true' : 'false',
+                customer_name: pendingSale.customerName,
+                whatsapp: pendingSale.whatsapp,
+                payment_method: paymentMethod,
+                mark_paid_now: paymentMethod === 'pix' ? 'false' : 'true',
                 items_json: JSON.stringify(
                     saleCart.map((item) => ({
                         product_id: item.product_id,
@@ -281,49 +295,57 @@
             });
 
             currentOrderId = payload.order_id;
-            modalTitle.textContent = 'Venda criada';
-            modalMessage.textContent = payload.message || 'Venda finalizada.';
-            modalStatus.textContent = payload.status_label || '';
-
             currentPixCode = payload.pix_code || '';
             printTicketBtn.hidden = !currentOrderId;
-            if (payload.qr_code_base64) {
+
+            if (paymentMethod === 'pix' && payload.qr_code_base64) {
+                modalTitle.textContent = 'Pagamento Pix';
+                modalMessage.textContent = payload.message || 'Venda criada. Gere o Pix.';
+                modalStatus.textContent = payload.status_label || 'Aguardando pagamento';
                 modalQr.src = `data:image/png;base64,${payload.qr_code_base64}`;
                 modalQr.hidden = false;
                 copyPixBtn.hidden = false;
-                markPaidBtn.hidden = true;
                 stopPixStatusPolling();
                 statusPoller = window.setInterval(pollPixStatus, 5000);
                 pollPixStatus();
             } else {
+                modalTitle.textContent = 'Venda confirmada';
+                modalMessage.textContent = payload.message || `Venda #${payload.order_id} confirmada.`;
+                modalStatus.textContent = 'Pagamento aprovado';
                 modalQr.removeAttribute('src');
                 modalQr.hidden = true;
                 copyPixBtn.hidden = true;
-                markPaidBtn.hidden = payload.is_paid;
+                stopPixStatusPolling();
             }
 
             saleCart = [];
+            pendingSale = null;
             saleForm.reset();
-            refreshPaymentMethodUI();
             renderSaleCart();
             openModal();
         } catch (error) {
             showError(error.message);
+        } finally {
+            creatingSale = false;
         }
     }
 
-    async function onMarkPaid() {
-        if (!currentOrderId) {
+    function onSubmitSale(event) {
+        event.preventDefault();
+
+        if (!saleCart.length) {
+            showError('Adicione itens antes de finalizar a venda.');
             return;
         }
-        try {
-            const payload = await post(markPaidTemplate.replace('/0/', `/${currentOrderId}/`), {});
-            modalStatus.textContent = 'Pagamento aprovado';
-            modalMessage.textContent = payload.message || `Venda #${currentOrderId} marcada como paga.`;
-            markPaidBtn.hidden = true;
-        } catch (error) {
-            showError(error.message);
+
+        const data = collectSaleData();
+        if (!data.customerName || !data.whatsapp) {
+            showError('Informe nome completo e WhatsApp antes de continuar.');
+            return;
         }
+
+        pendingSale = data;
+        openPaymentChoiceModal();
     }
 
     async function onCopyPix() {
@@ -339,16 +361,19 @@
         }
     }
 
-    paymentMethodSelect.addEventListener('change', refreshPaymentMethodUI);
     saleForm.addEventListener('submit', onSubmitSale);
+    paymentChoiceButtons.forEach((button) => {
+        button.addEventListener('click', () => createSaleWithPayment(button.dataset.paymentChoice));
+    });
+    closePaymentChoiceBtn.addEventListener('click', closePaymentChoiceModal);
+    paymentChoiceOverlay.addEventListener('click', closePaymentChoiceModal);
+
     copyPixBtn.addEventListener('click', onCopyPix);
-    markPaidBtn.addEventListener('click', onMarkPaid);
     printTicketBtn.addEventListener('click', openPrintTicket);
     closeModalBtn.addEventListener('click', closeModal);
     modalOverlay.addEventListener('click', closeModal);
 
     bindProductCards();
     bindCartActions();
-    refreshPaymentMethodUI();
     renderSaleCart();
 })();
