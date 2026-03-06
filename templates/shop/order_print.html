@@ -74,15 +74,23 @@
 
         @media print {
             @page {
-                size: 58mm auto;
-                margin: 1.5mm;
+                size: 58mm;
+                margin: 0;
             }
 
             html,
             body {
                 width: 58mm;
+                max-width: 58mm;
+                height: auto !important;
                 margin: 0;
                 padding: 0;
+            }
+
+            .sheet {
+                width: 56mm;
+                margin: 0 auto;
+                padding: 1mm 0.8mm;
             }
         }
     </style>
