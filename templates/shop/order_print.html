@@ -35,6 +35,7 @@
             font-size: 14px;
             line-height: 1.45;
             margin: 0 0 4mm 0;
+            font-weight: 700;
         }
 
         .meta-strong {
@@ -45,15 +46,30 @@
             margin-bottom: 1mm;
         }
 
+        .meta-line {
+            display: block;
+            margin-bottom: 0.8mm;
+        }
+
         .items {
             margin-top: 3mm;
+        }
+
+        .items-title {
+            font-size: 16px;
+            font-weight: 800;
+            margin: 0 0 3mm 0;
         }
 
         .item-line {
             font-size: 16px;
             line-height: 1.45;
             margin: 0 0 4mm 0;
-            font-weight: 600;
+            font-weight: 500;
+        }
+
+        .item-qty {
+            font-weight: 800;
         }
 
         @media print {
@@ -76,14 +92,15 @@
             <p class="meta">
                 <span class="meta-strong">PEDIDO #{{ order.id }}</span>
                 <span class="meta-strong">CLIENTE: {{ order.first_name }} {{ order.last_name }}</span>
-                WhatsApp: {{ order.whatsapp }}<br>
-                Pagamento: {{ order.get_payment_method_display }}<br>
-                Pago: {% if order.is_paid %}Sim{% else %}Nao{% endif %}<br>
-                Emissao: {{ printed_at|date:"d/m/Y H:i" }}
+                <span class="meta-line">WhatsApp: {{ order.whatsapp }}</span>
+                <span class="meta-line">Pagamento: {{ order.get_payment_method_display }}</span>
+                <span class="meta-line">Pago: {% if order.is_paid %}Sim{% else %}Nao{% endif %}</span>
+                <span class="meta-line">Emissao: {{ printed_at|date:"d/m/Y H:i" }}</span>
             </p>
             <div class="items">
+                <p class="items-title">ITENS</p>
                 {% for item in order.items_json %}
-                    <p class="item-line">{{ item.quantity }}x {{ item.name }}</p>
+                    <p class="item-line"><span class="item-qty">{{ item.quantity }}x</span> {{ item.name }}</p>
                 {% empty %}
                     <p class="item-line">Sem itens.</p>
                 {% endfor %}
