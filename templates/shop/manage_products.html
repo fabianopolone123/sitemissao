@@ -548,7 +548,7 @@
                     const printUrl = withAutoPrint(printOrderTemplate.replace('/0/', `/${orderId}/`));
                     const popup = window.open(printUrl, '_blank', 'noopener,noreferrer');
                     if (!popup) {
-                        window.location.href = printUrl;
+                        window.alert('O navegador bloqueou a janela de impressao. Libere pop-ups para este site para imprimir sem sair da tela de pedidos.');
                     }
                 });
             });
