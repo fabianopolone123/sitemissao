@@ -5,50 +5,62 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Imprimir pedido #{{ order.id }}</title>
     <style>
+        :root {
+            --paper-width: 58mm;
+            --content-width: 46mm;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
         body {
-            font-family: Arial, sans-serif;
+            width: var(--paper-width);
+            max-width: var(--paper-width);
             margin: 0;
             padding: 0;
+            font-family: Arial, sans-serif;
             color: #111;
             background: #fff;
         }
 
         .sheet {
-            width: 52mm;
+            width: var(--content-width);
             margin: 0 auto;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        .copy {
-            padding: 0.6mm 0.8mm 1.1mm 0.8mm;
-            box-sizing: border-box;
+            padding: 0.9mm 0 1.2mm 0;
         }
 
         .title {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 700;
             margin: 0 0 1.6mm 0;
             text-align: center;
         }
 
         .meta {
-            font-size: 10px;
-            line-height: 1.2;
-            margin: 0 0 2mm 0;
-            font-weight: 700;
+            margin: 0 0 1.8mm 0;
+        }
+
+        .meta-strong,
+        .meta-line {
+            display: block;
+            max-width: 100%;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .meta-strong {
-            display: block;
             font-size: 11px;
             font-weight: 700;
-            line-height: 1.1;
+            line-height: 1.2;
             margin-bottom: 0.5mm;
         }
 
         .meta-line {
-            display: block;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1.2;
             margin-bottom: 0.5mm;
         }
 
@@ -62,23 +74,33 @@
             margin: 0 0 1.2mm 0;
         }
 
-        .item-line {
-            font-size: 10px;
-            line-height: 1.15;
-            margin: 0 0 1.4mm 0;
-            font-weight: 500;
+        .item-row {
+            display: grid;
+            grid-template-columns: 6mm 1fr;
+            column-gap: 1mm;
+            margin: 0 0 1.2mm 0;
+            align-items: start;
         }
 
-        .meta-strong,
-        .meta-line,
-        .item-line {
-            max-width: 100%;
+        .item-qty {
+            font-size: 10px;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+
+        .item-name {
+            min-width: 0;
+            font-size: 10px;
+            font-weight: 500;
+            line-height: 1.2;
             overflow-wrap: anywhere;
             word-break: break-word;
         }
 
-        .item-qty {
-            font-weight: 800;
+        .item-empty {
+            font-size: 10px;
+            line-height: 1.2;
+            margin: 0;
         }
 
         @media print {
@@ -89,15 +111,15 @@
 
             html,
             body {
-                width: 58mm;
-                max-width: 58mm;
+                width: var(--paper-width);
+                max-width: var(--paper-width);
                 margin: 0;
                 padding: 0;
-                overflow: hidden;
+                overflow: visible;
             }
 
             .sheet {
-                width: 52mm;
+                width: var(--content-width);
                 margin: 0 auto;
                 padding: 0;
                 break-inside: avoid;
@@ -107,7 +129,7 @@
             .copy,
             .meta,
             .items,
-            .item-line {
+            .item-row {
                 break-inside: avoid;
                 page-break-inside: avoid;
             }
@@ -129,9 +151,12 @@
             <div class="items">
                 <p class="items-title">ITENS</p>
                 {% for item in order.items_json %}
-                    <p class="item-line"><span class="item-qty">{{ item.quantity }}x</span> {{ item.name }}</p>
+                    <div class="item-row">
+                        <span class="item-qty">{{ item.quantity }}x</span>
+                        <span class="item-name">{{ item.name }}</span>
+                    </div>
                 {% empty %}
-                    <p class="item-line">Sem itens.</p>
+                    <p class="item-empty">Sem itens.</p>
                 {% endfor %}
             </div>
         </section>
