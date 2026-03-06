@@ -14,9 +14,9 @@
         }
 
         .sheet {
-            width: 78mm;
+            width: 56mm;
             margin: 0 auto;
-            padding: 4mm 2mm;
+            padding: 2mm 1mm;
             box-sizing: border-box;
         }
 
@@ -74,13 +74,15 @@
 
         @media print {
             @page {
-                size: 80mm 297mm;
-                margin: 2mm;
+                size: 58mm auto;
+                margin: 1.5mm;
             }
 
             html,
             body {
-                width: 80mm;
+                width: 58mm;
+                margin: 0;
+                padding: 0;
             }
         }
     </style>
@@ -109,9 +111,18 @@
     </div>
 
     <script>
-        window.addEventListener('load', function () {
-            window.print();
-        });
+        (function () {
+            let printed = false;
+            window.addEventListener('load', function () {
+                if (printed) {
+                    return;
+                }
+                printed = true;
+                window.setTimeout(function () {
+                    window.print();
+                }, 120);
+            });
+        })();
     </script>
 </body>
 </html>
