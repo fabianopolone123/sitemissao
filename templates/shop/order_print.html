@@ -120,12 +120,20 @@
 
     <script>
         (function () {
-            let printed = false;
+            const params = new URLSearchParams(window.location.search);
+            const shouldAutoPrint = params.get('autoprint') === '1';
+            if (!shouldAutoPrint) {
+                return;
+            }
+
+            params.delete('autoprint');
+            const cleanQuery = params.toString();
+            const cleanUrl = `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ''}`;
+            if (window.history && window.history.replaceState) {
+                window.history.replaceState({}, '', cleanUrl);
+            }
+
             window.addEventListener('load', function () {
-                if (printed) {
-                    return;
-                }
-                printed = true;
                 window.setTimeout(function () {
                     window.print();
                 }, 120);

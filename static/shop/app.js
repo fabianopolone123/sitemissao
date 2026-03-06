@@ -84,6 +84,13 @@
         return /android/i.test(navigator.userAgent || '');
     }
 
+    function withAutoPrint(url) {
+        if (!url) {
+            return '';
+        }
+        return `${url}${url.includes('?') ? '&' : '?'}autoprint=1`;
+    }
+
     function buildBluetoothTicketText(orderId, summary) {
         const lines = [
             'VIA COZINHA',
@@ -376,10 +383,11 @@
                 if (androidDevice) {
                     openRawBtIntent(currentBluetoothTicketText);
                 } else if (currentPrintUrl) {
+                    const autoPrintUrl = withAutoPrint(currentPrintUrl);
                     if (pendingPrintWindow) {
-                        pendingPrintWindow.location.href = currentPrintUrl;
+                        pendingPrintWindow.location.href = autoPrintUrl;
                     } else {
-                        window.open(currentPrintUrl, '_blank', 'noopener,noreferrer');
+                        window.open(autoPrintUrl, '_blank', 'noopener,noreferrer');
                     }
                 } else if (pendingPrintWindow) {
                     pendingPrintWindow.close();
@@ -467,9 +475,9 @@
             showError('URL de impressao indisponivel.');
             return;
         }
-        const popup = window.open(currentPrintUrl, '_blank', 'noopener,noreferrer');
+        const popup = window.open(withAutoPrint(currentPrintUrl), '_blank', 'noopener,noreferrer');
         if (!popup) {
-            window.location.href = currentPrintUrl;
+            window.location.href = withAutoPrint(currentPrintUrl);
         }
     }
 

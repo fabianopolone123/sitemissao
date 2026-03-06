@@ -44,6 +44,13 @@
         return /android/i.test(navigator.userAgent || '');
     }
 
+    function withAutoPrint(url) {
+        if (!url) {
+            return '';
+        }
+        return `${url}${url.includes('?') ? '&' : '?'}autoprint=1`;
+    }
+
     function showError(message) {
         window.alert(message);
     }
@@ -185,9 +192,10 @@
             showError('Nao foi possivel gerar a URL de impressao.');
             return;
         }
-        const popup = window.open(printUrl, '_blank', 'noopener,noreferrer');
+        const autoPrintUrl = withAutoPrint(printUrl);
+        const popup = window.open(autoPrintUrl, '_blank', 'noopener,noreferrer');
         if (!popup) {
-            window.location.href = printUrl;
+            window.location.href = autoPrintUrl;
         }
     }
 

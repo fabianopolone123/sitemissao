@@ -503,10 +503,17 @@
                 return lines.join('\n');
             }
 
+            function withAutoPrint(url) {
+                if (!url) {
+                    return '';
+                }
+                return `${url}${url.includes('?') ? '&' : '?'}autoprint=1`;
+            }
+
             const printOrderId = document.body.dataset.printOrderId;
             const printOrderTemplate = document.body.dataset.printOrderTemplate;
             if (printOrderId && printOrderTemplate) {
-                const printUrl = printOrderTemplate.replace('/0/', `/${printOrderId}/`);
+                const printUrl = withAutoPrint(printOrderTemplate.replace('/0/', `/${printOrderId}/`));
                 window.setTimeout(() => {
                     window.open(printUrl, '_blank', 'noopener,noreferrer');
                 }, 250);
@@ -538,7 +545,7 @@
                         window.alert('Nao foi possivel abrir a impressao deste pedido.');
                         return;
                     }
-                    const printUrl = printOrderTemplate.replace('/0/', `/${orderId}/`);
+                    const printUrl = withAutoPrint(printOrderTemplate.replace('/0/', `/${orderId}/`));
                     const popup = window.open(printUrl, '_blank', 'noopener,noreferrer');
                     if (!popup) {
                         window.location.href = printUrl;
