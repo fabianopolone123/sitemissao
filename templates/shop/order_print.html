@@ -25,41 +25,35 @@
         }
 
         .title {
-            font-size: 14px;
+            font-size: 19px;
             font-weight: 700;
-            margin: 0 0 2mm 0;
+            margin: 0 0 3mm 0;
             text-align: center;
         }
 
         .meta {
-            font-size: 12px;
+            font-size: 14px;
+            line-height: 1.45;
+            margin: 0 0 4mm 0;
+        }
+
+        .meta-strong {
+            display: block;
+            font-size: 18px;
+            font-weight: 700;
             line-height: 1.35;
-            margin: 0 0 2mm 0;
+            margin-bottom: 1mm;
         }
 
         .items {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 12px;
-            margin-top: 2mm;
+            margin-top: 3mm;
         }
 
-        .items td {
-            padding: 1mm 0;
-            vertical-align: top;
-        }
-
-        .items td:last-child {
-            text-align: right;
-            white-space: nowrap;
-        }
-
-        .total {
-            border-top: 1px solid #000;
-            margin-top: 2mm;
-            padding-top: 2mm;
-            font-weight: 700;
-            font-size: 13px;
+        .item-line {
+            font-size: 16px;
+            line-height: 1.45;
+            margin: 0 0 4mm 0;
+            font-weight: 600;
         }
 
         @media print {
@@ -80,24 +74,20 @@
         <section class="copy">
             <p class="title">VIA COZINHA</p>
             <p class="meta">
-                Pedido #{{ order.id }}<br>
-                Cliente: {{ order.first_name }} {{ order.last_name }}<br>
+                <span class="meta-strong">PEDIDO #{{ order.id }}</span>
+                <span class="meta-strong">CLIENTE: {{ order.first_name }} {{ order.last_name }}</span>
                 WhatsApp: {{ order.whatsapp }}<br>
                 Pagamento: {{ order.get_payment_method_display }}<br>
                 Pago: {% if order.is_paid %}Sim{% else %}Nao{% endif %}<br>
                 Emissao: {{ printed_at|date:"d/m/Y H:i" }}
             </p>
-            <table class="items">
-                <tbody>
-                    {% for item in order.items_json %}
-                        <tr>
-                            <td>{{ item.quantity }}x {{ item.name }}</td>
-                            <td>R$ {{ item.subtotal }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            <div class="total">Total: R$ {{ order.total|floatformat:2 }}</div>
+            <div class="items">
+                {% for item in order.items_json %}
+                    <p class="item-line">{{ item.quantity }}x {{ item.name }}</p>
+                {% empty %}
+                    <p class="item-line">Sem itens.</p>
+                {% endfor %}
+            </div>
         </section>
     </div>
 

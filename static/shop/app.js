@@ -88,6 +88,7 @@
         const lines = [
             'VIA COZINHA',
             `Pedido #${orderId}`,
+            `Cliente: ${summary && summary.customer_name ? summary.customer_name : '-'}`,
             '',
             'Itens:',
         ];
@@ -95,11 +96,9 @@
         items.forEach((item) => {
             const qty = item.quantity || 0;
             const name = item.name || 'Item';
-            const subtotal = item.subtotal || item.price || '0.00';
-            lines.push(`- ${qty}x ${name} | R$ ${subtotal}`);
+            lines.push(`- ${qty}x ${name}`);
+            lines.push('');
         });
-        lines.push('');
-        lines.push(`Total: R$ ${summary && summary.total ? summary.total : '0.00'}`);
         return lines.join('\n');
     }
 

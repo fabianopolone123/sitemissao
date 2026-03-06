@@ -89,7 +89,7 @@
         return parseMoney(value).toFixed(2);
     }
 
-    function buildBluetoothTicketText(orderId, customerName, items, total) {
+    function buildBluetoothTicketText(orderId, customerName, items) {
         const lines = [
             'VIA COZINHA',
             `Pedido #${orderId}`,
@@ -98,10 +98,9 @@
             'Itens:',
         ];
         (items || []).forEach((item) => {
-            lines.push(`- ${item.quantity}x ${item.name} | R$ ${formatMoney(item.price * item.quantity)}`);
+            lines.push(`- ${item.quantity}x ${item.name}`);
+            lines.push('');
         });
-        lines.push('');
-        lines.push(`Total: R$ ${formatMoney(total || 0)}`);
         return lines.join('\n');
     }
 
@@ -449,8 +448,7 @@
             currentBluetoothTicketText = buildBluetoothTicketText(
                 payload.order_id,
                 pendingSale.customerName,
-                saleItemsSnapshot,
-                parseMoney(payload.total || 0)
+                saleItemsSnapshot
             );
             printTicketBtn.hidden = isAndroidDevice() || !currentOrderId;
 

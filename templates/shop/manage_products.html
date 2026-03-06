@@ -147,7 +147,7 @@
             >
             <div class="orders-list">
                 {% for order in orders %}
-                    <article class="order-card {% if order.is_paid %}order-card-paid{% else %}order-card-unpaid{% endif %}" data-order-id="{{ order.id }}" data-order-customer="{{ order.first_name }} {{ order.last_name }}" data-order-total="{{ order.total|floatformat:2 }}" data-order-search="#{{ order.id }} {{ order.first_name }} {{ order.last_name }} {{ order.whatsapp }} {{ order.items_json|safe }}">
+                    <article class="order-card {% if order.is_paid %}order-card-paid{% else %}order-card-unpaid{% endif %}" data-order-id="{{ order.id }}" data-order-customer="{{ order.first_name }} {{ order.last_name }}" data-order-search="#{{ order.id }} {{ order.first_name }} {{ order.last_name }} {{ order.whatsapp }} {{ order.items_json|safe }}">
                         <div class="order-head">
                             <strong>Pedido #{{ order.id }}</strong>
                             <div>
@@ -475,10 +475,14 @@
             function buildKitchenTicketFromCard(card) {
                 const orderId = card.dataset.orderId || '';
                 const customer = card.dataset.orderCustomer || '-';
-                const total = card.dataset.orderTotal || '0.00';
                 const itemLines = Array.from(card.querySelectorAll('.order-items li'))
                     .map((li) => li.textContent.trim())
-                    .filter((line) => line && !line.toLowerCase().includes('sem itens registrados'));
+                    .filter((line) => line && !line.toLowerCase().includes('sem itens registrados'))
+                    .map((line) => line
+                        .replace(/\(R\$\s*[^)]*\)/gi, '')
+                        .replace(/-\s*subtotal\s*R\$\s*.*$/i, '')
+                        .replace(/\s{2,}/g, ' ')
+                        .trim());
 
                 const lines = [
                     'VIA COZINHA',
@@ -488,12 +492,13 @@
                     'Itens:',
                 ];
                 if (itemLines.length) {
-                    itemLines.forEach((line) => lines.push(`- ${line}`));
+                    itemLines.forEach((line) => {
+                        lines.push(`- ${line}`);
+                        lines.push('');
+                    });
                 } else {
                     lines.push('- Sem itens');
                 }
-                lines.push('');
-                lines.push(`Total: R$ ${total}`);
                 return lines.join('\n');
             }
 
