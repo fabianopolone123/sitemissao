@@ -560,9 +560,32 @@ h1 {
 .sales-summary-card {
     position: sticky;
     top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     height: fit-content;
     max-height: calc(100vh - 24px);
-    overflow: auto;
+    overflow: hidden;
+}
+
+.sales-summary-card .sidebar-items {
+    flex: 1 1 auto;
+    min-height: 120px;
+    max-height: 52vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.sales-summary-card #sale-cart-total {
+    display: inline-block;
+}
+
+.sales-summary-card .checkout-form {
+    flex: 0 0 auto;
+    margin-top: 2px;
+    padding-top: 8px;
+    border-top: 1px solid #ece8e0;
+    background: #fffdf9;
 }
 
 .sales-summary-head {
@@ -813,14 +836,19 @@ h1 {
         right: 0;
         top: 0;
         z-index: 95;
-        height: 100vh;
+        height: 100dvh;
         width: min(420px, 94vw);
         max-height: none;
-        overflow: auto;
+        overflow: hidden;
         border-radius: 0;
         transform: translateX(100%);
         transition: transform 0.25s ease;
         box-shadow: -10px 0 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .sales-summary-card .sidebar-items {
+        min-height: 0;
+        max-height: none;
     }
 
     .sales-summary-card.open {
