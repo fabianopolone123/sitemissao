@@ -510,6 +510,28 @@
                 return `${url}${url.includes('?') ? '&' : '?'}autoprint=1`;
             }
 
+            function printUsingHiddenFrame(printUrl) {
+                if (!printUrl) {
+                    return;
+                }
+                const frame = document.createElement('iframe');
+                frame.setAttribute('aria-hidden', 'true');
+                frame.style.position = 'fixed';
+                frame.style.right = '0';
+                frame.style.bottom = '0';
+                frame.style.width = '0';
+                frame.style.height = '0';
+                frame.style.border = '0';
+                frame.style.opacity = '0';
+                frame.src = printUrl;
+                document.body.appendChild(frame);
+                window.setTimeout(() => {
+                    if (frame.parentNode) {
+                        frame.parentNode.removeChild(frame);
+                    }
+                }, 45000);
+            }
+
             const printOrderId = document.body.dataset.printOrderId;
             const printOrderTemplate = document.body.dataset.printOrderTemplate;
             if (printOrderId && printOrderTemplate) {
@@ -548,7 +570,7 @@
                     const printUrl = withAutoPrint(printOrderTemplate.replace('/0/', `/${orderId}/`));
                     const popup = window.open(printUrl, '_blank', 'noopener,noreferrer');
                     if (!popup) {
-                        window.alert('O navegador bloqueou a janela de impressao. Libere pop-ups para este site para imprimir sem sair da tela de pedidos.');
+                        printUsingHiddenFrame(printUrl);
                     }
                 });
             });
