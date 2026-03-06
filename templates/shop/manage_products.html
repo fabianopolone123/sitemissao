@@ -179,6 +179,7 @@
                         </div>
                         <div class="order-actions">
                             <button type="button" class="secondary-button order-print-kitchen-btn">Imprimir via cozinha (tablet)</button>
+                            <button type="button" class="secondary-button order-print-pc-btn">Imprimir PC</button>
                             {% if not order.is_paid %}
                                 <form method="post" action="{% url 'manage_order_mark_paid_page' order.id %}">
                                     {% csrf_token %}
@@ -519,20 +520,24 @@
                     }
 
                     const ticketText = buildKitchenTicketFromCard(card);
-                    const orderId = card.dataset.orderId;
-                    if (isAndroidDevice()) {
-                        const opened = openRawBtIntent(ticketText);
-                        if (!opened) {
-                            await shareTicketFallback(ticketText);
-                        }
+                    const opened = openRawBtIntent(ticketText);
+                    if (!opened) {
+                        await shareTicketFallback(ticketText);
+                    }
+                });
+            });
+
+            document.querySelectorAll('.order-print-pc-btn').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const card = button.closest('.order-card');
+                    if (!card) {
                         return;
                     }
-
+                    const orderId = card.dataset.orderId;
                     if (!printOrderTemplate || !orderId) {
                         window.alert('Nao foi possivel abrir a impressao deste pedido.');
                         return;
                     }
-
                     const printUrl = printOrderTemplate.replace('/0/', `/${orderId}/`);
                     const popup = window.open(printUrl, '_blank', 'noopener,noreferrer');
                     if (!popup) {
@@ -540,6 +545,16 @@
                     }
                 });
             });
+
+            if (isAndroidDevice()) {
+                document.querySelectorAll('.order-print-pc-btn').forEach((button) => {
+                    button.style.display = 'none';
+                });
+            } else {
+                document.querySelectorAll('.order-print-kitchen-btn').forEach((button) => {
+                    button.style.display = 'none';
+                });
+            }
 
             const params = new URLSearchParams(window.location.search);
             const tab = params.get('tab');
