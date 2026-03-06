@@ -14,14 +14,15 @@
         }
 
         .sheet {
-            width: 56mm;
+            width: 58mm;
             margin: 0 auto;
-            padding: 2mm 1mm;
+            padding: 0;
             box-sizing: border-box;
         }
 
         .copy {
-            padding: 2mm;
+            padding: 1.5mm 1.4mm 2mm 1.4mm;
+            box-sizing: border-box;
         }
 
         .title {
@@ -32,17 +33,17 @@
         }
 
         .meta {
-            font-size: 14px;
-            line-height: 1.45;
+            font-size: 13px;
+            line-height: 1.35;
             margin: 0 0 4mm 0;
             font-weight: 700;
         }
 
         .meta-strong {
             display: block;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 700;
-            line-height: 1.35;
+            line-height: 1.25;
             margin-bottom: 1mm;
         }
 
@@ -56,16 +57,24 @@
         }
 
         .items-title {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: 800;
             margin: 0 0 3mm 0;
         }
 
         .item-line {
-            font-size: 16px;
-            line-height: 1.45;
+            font-size: 15px;
+            line-height: 1.35;
             margin: 0 0 4mm 0;
             font-weight: 500;
+        }
+
+        .meta-strong,
+        .meta-line,
+        .item-line {
+            max-width: 100%;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .item-qty {
@@ -88,9 +97,9 @@
             }
 
             .sheet {
-                width: 56mm;
+                width: 58mm;
                 margin: 0 auto;
-                padding: 1mm 0.8mm;
+                padding: 0;
                 break-inside: avoid;
                 page-break-inside: avoid;
             }
