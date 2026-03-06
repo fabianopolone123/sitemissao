@@ -7,7 +7,8 @@
     <style>
         :root {
             --paper-width: 58mm;
-            --content-width: 46mm;
+            --content-width: 44mm;
+            --left-offset: 0.2mm;
         }
 
         * {
@@ -27,7 +28,7 @@
 
         .sheet {
             width: var(--content-width);
-            margin: 0 auto;
+            margin: 0 0 0 var(--left-offset);
             padding: 0.9mm 0 1.2mm 0;
         }
 
@@ -76,8 +77,8 @@
 
         .item-row {
             display: grid;
-            grid-template-columns: 6mm 1fr;
-            column-gap: 1mm;
+            grid-template-columns: 5mm 1fr;
+            column-gap: 0.8mm;
             margin: 0 0 1.2mm 0;
             align-items: start;
         }
@@ -120,7 +121,7 @@
 
             .sheet {
                 width: var(--content-width);
-                margin: 0 auto;
+                margin: 0 0 0 var(--left-offset);
                 padding: 0;
                 break-inside: avoid;
                 page-break-inside: avoid;
