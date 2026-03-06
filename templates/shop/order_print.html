@@ -74,7 +74,7 @@
 
         @media print {
             @page {
-                size: 58mm;
+                size: 58mm {{ print_paper_height_mm|default:160 }}mm;
                 margin: 0;
             }
 
@@ -82,7 +82,7 @@
             body {
                 width: 58mm;
                 max-width: 58mm;
-                height: auto !important;
+                height: {{ print_paper_height_mm|default:160 }}mm;
                 margin: 0;
                 padding: 0;
             }

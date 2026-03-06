@@ -672,6 +672,21 @@ def _is_valid_public_print_token(order_id, token):
     return unsigned == str(order_id)
 
 
+def _order_print_paper_height_mm(order):
+    items = order.items_json if isinstance(order.items_json, list) else []
+    line_count = 0
+    for item in items:
+        qty = item.get('quantity', 1)
+        name = item.get('name', 'Item')
+        text = f'{qty}x {name}'
+        wrapped_lines = max(1, (len(text) + 19) // 20)
+        line_count += wrapped_lines
+
+    paper_height = 120 + (line_count * 8)
+    paper_height = max(120, min(320, paper_height))
+    return int(paper_height)
+
+
 @require_GET
 def home(request):
     products = Product.objects.filter(active=True).prefetch_related('variants')
@@ -1414,6 +1429,7 @@ def manage_order_print_page(request, order_id):
         {
             'order': order,
             'printed_at': timezone.localtime(timezone.now()),
+            'print_paper_height_mm': _order_print_paper_height_mm(order),
         },
     )
 
@@ -1436,6 +1452,7 @@ def order_print_public_page(request, order_id):
             'order': order,
             'printed_at': timezone.localtime(timezone.now()),
             'kitchen_only': kitchen_only,
+            'print_paper_height_mm': _order_print_paper_height_mm(order),
         },
     )
 
