@@ -495,12 +495,6 @@
             resetProductSelectionInputs();
             renderSaleCart();
             openModal();
-            if (isAndroidDevice() && paymentMethod !== 'pix') {
-                const opened = openRawBtIntent(currentBluetoothTicketText);
-                if (!opened) {
-                    shareBluetoothTicketFallback();
-                }
-            }
         } catch (error) {
             showError(error.message);
         } finally {
