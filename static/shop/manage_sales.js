@@ -34,6 +34,7 @@
     let pendingSale = null;
     let creatingSale = false;
     let currentBluetoothTicketText = '';
+    let pixApprovedPrinted = false;
 
     function csrfToken() {
         const input = document.querySelector('input[name=csrfmiddlewaretoken]');
@@ -413,6 +414,13 @@
             modalStatus.textContent = payload.status_label || 'Aguardando pagamento';
             if (payload.is_paid) {
                 modalMessage.textContent = `Pagamento aprovado para a venda #${payload.order_id}.`;
+                if (isAndroidDevice() && !pixApprovedPrinted) {
+                    const opened = openRawBtIntent(currentBluetoothTicketText);
+                    if (!opened) {
+                        shareBluetoothTicketFallback();
+                    }
+                    pixApprovedPrinted = true;
+                }
                 stopPixStatusPolling();
             }
         } catch (error) {
@@ -453,6 +461,7 @@
 
             currentOrderId = payload.order_id;
             currentPixCode = payload.pix_code || '';
+            pixApprovedPrinted = false;
             currentBluetoothTicketText = buildBluetoothTicketText(
                 payload.order_id,
                 pendingSale.customerName,
@@ -486,7 +495,7 @@
             resetProductSelectionInputs();
             renderSaleCart();
             openModal();
-            if (isAndroidDevice()) {
+            if (isAndroidDevice() && paymentMethod !== 'pix') {
                 const opened = openRawBtIntent(currentBluetoothTicketText);
                 if (!opened) {
                     shareBluetoothTicketFallback();
