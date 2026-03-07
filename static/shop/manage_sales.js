@@ -35,6 +35,7 @@
     let creatingSale = false;
     let currentBluetoothTicketText = '';
     let pixApprovedPrinted = false;
+    let saleModalAutoCloseTimer = null;
 
     function csrfToken() {
         const input = document.querySelector('input[name=csrfmiddlewaretoken]');
@@ -170,14 +171,30 @@
 
     function openModal() {
         closeSaleCart();
+        stopSaleModalAutoClose();
         modalOverlay.hidden = false;
         modal.hidden = false;
     }
 
     function closeModal() {
+        stopSaleModalAutoClose();
         modalOverlay.hidden = true;
         modal.hidden = true;
         stopPixStatusPolling();
+    }
+
+    function stopSaleModalAutoClose() {
+        if (saleModalAutoCloseTimer) {
+            window.clearTimeout(saleModalAutoCloseTimer);
+            saleModalAutoCloseTimer = null;
+        }
+    }
+
+    function scheduleSaleModalAutoClose() {
+        stopSaleModalAutoClose();
+        saleModalAutoCloseTimer = window.setTimeout(() => {
+            closeModal();
+        }, 5000);
     }
 
     function buildPrintOrderUrl(orderId) {
@@ -476,6 +493,7 @@
                 modalQr.src = `data:image/png;base64,${payload.qr_code_base64}`;
                 modalQr.hidden = false;
                 copyPixBtn.hidden = false;
+                printTicketBtn.hidden = isAndroidDevice() || !currentOrderId;
                 stopPixStatusPolling();
                 statusPoller = window.setInterval(pollPixStatus, 5000);
                 pollPixStatus();
@@ -486,6 +504,7 @@
                 modalQr.removeAttribute('src');
                 modalQr.hidden = true;
                 copyPixBtn.hidden = true;
+                printTicketBtn.hidden = true;
                 stopPixStatusPolling();
             }
 
@@ -495,6 +514,9 @@
             resetProductSelectionInputs();
             renderSaleCart();
             openModal();
+            if (paymentMethod !== 'pix') {
+                scheduleSaleModalAutoClose();
+            }
         } catch (error) {
             showError(error.message);
         } finally {
