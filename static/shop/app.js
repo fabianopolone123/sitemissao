@@ -18,8 +18,6 @@
     const paymentModal = document.getElementById('payment-modal');
     const closePaymentModalButton = document.getElementById('close-payment-modal');
     const copyPixCodeButton = document.getElementById('copy-pix-code');
-    const bluetoothPrintButton = document.getElementById('print-bluetooth-ticket');
-    let printOrderTicketButton = document.getElementById('print-order-ticket');
     const paymentMessage = document.getElementById('payment-message');
     const paymentStatusLabel = document.getElementById('payment-status-label');
     const paymentQr = document.getElementById('payment-qr');
@@ -154,17 +152,6 @@
 
     function openPaymentModal() {
         closeCart();
-        if (!printOrderTicketButton) {
-            const dynamicButton = document.createElement('button');
-            dynamicButton.id = 'print-order-ticket';
-            dynamicButton.type = 'button';
-            dynamicButton.className = 'add-btn';
-            dynamicButton.hidden = true;
-            dynamicButton.textContent = 'Imprimir pedido';
-            paymentModal.appendChild(dynamicButton);
-            dynamicButton.addEventListener('click', printOrderTicket);
-            printOrderTicketButton = dynamicButton;
-        }
         paymentOverlay.hidden = false;
         paymentModal.hidden = false;
     }
@@ -374,9 +361,6 @@
                 if (!currentPrintUrl && payload.order_id) {
                     currentPrintUrl = `/orders/print/${payload.order_id}/`;
                 }
-                if (printOrderTicketButton) {
-                    printOrderTicketButton.hidden = isAndroidDevice() || !currentPrintUrl;
-                }
                 checkoutForm.reset();
                 startPaymentStatusPolling(payload.order_id);
                 openPaymentModal();
@@ -432,55 +416,6 @@
         }
     }
 
-    async function shareBluetoothTicket(showFeedbackOnFail = true) {
-        if (!currentBluetoothTicketText) {
-            if (showFeedbackOnFail) {
-                showError('Cupom indisponivel para impressao.');
-            }
-            return false;
-        }
-
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: `Pedido #${currentOrderId || ''}`,
-                    text: currentBluetoothTicketText,
-                });
-                return true;
-            } catch (error) {
-                if (!showFeedbackOnFail) {
-                    return false;
-                }
-            }
-        }
-
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            try {
-                await navigator.clipboard.writeText(currentBluetoothTicketText);
-                window.alert('Cupom copiado. Cole no app da impressora Bluetooth.');
-                return false;
-            } catch (error) {
-                // segue para mensagem final
-            }
-        }
-
-        if (showFeedbackOnFail) {
-            showError('Nao foi possivel abrir o app de impressao automaticamente.');
-        }
-        return false;
-    }
-
-    function printOrderTicket() {
-        if (!currentPrintUrl) {
-            showError('URL de impressao indisponivel.');
-            return;
-        }
-        const popup = window.open(withAutoPrint(currentPrintUrl), '_blank', 'noopener,noreferrer');
-        if (!popup) {
-            window.location.href = withAutoPrint(currentPrintUrl);
-        }
-    }
-
     openCartButtons.forEach((button) => button.addEventListener('click', openCart));
     closeCartButton.addEventListener('click', closeCart);
     cartOverlay.addEventListener('click', closeCart);
@@ -494,18 +429,6 @@
     closePaymentModalButton.addEventListener('click', closePaymentModal);
     paymentOverlay.addEventListener('click', closePaymentModal);
     copyPixCodeButton.addEventListener('click', copyPixCode);
-    if (bluetoothPrintButton) {
-        bluetoothPrintButton.hidden = !isAndroidDevice();
-        bluetoothPrintButton.addEventListener('click', () => {
-            if (!openRawBtIntent(currentBluetoothTicketText)) {
-                shareBluetoothTicket(true);
-            }
-        });
-    }
-    if (printOrderTicketButton) {
-        printOrderTicketButton.hidden = isAndroidDevice();
-        printOrderTicketButton.addEventListener('click', printOrderTicket);
-    }
     closeSuccessModalButton.addEventListener('click', closeSuccessModal);
     successOkButton.addEventListener('click', closeSuccessModal);
     successOverlay.addEventListener('click', closeSuccessModal);
