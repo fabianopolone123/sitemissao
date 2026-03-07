@@ -302,6 +302,27 @@ class StoreFlowTests(TestCase):
         self.assertContains(response, '2x')
         self.assertNotContains(response, '5x')
 
+    def test_manage_order_mark_paid_page_keeps_current_tab_in_redirect(self):
+        order = Order.objects.create(
+            first_name='Cliente',
+            last_name='Aba',
+            whatsapp='16999997777',
+            payment_method=Order.PAYMENT_PIX,
+            total=Decimal('15.00'),
+            pix_code='',
+            items_json=[{'id': self.product.id, 'name': self.product.name, 'price': '15.00', 'quantity': 1, 'subtotal': '15.00'}],
+            mp_status='pending',
+        )
+
+        self.client.login(username='admin', password='senha-segura')
+        response = self.client.post(
+            reverse('manage_order_mark_paid_page', args=[order.id]),
+            {'return_tab': 'secao-pedidos'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('tab=secao-pedidos', response['Location'])
+
     def test_manage_orders_mark_all_delivered_requires_password(self):
         order = Order.objects.create(
             first_name='Cliente',

@@ -6,6 +6,7 @@ import os
 import random
 import time
 from decimal import Decimal, InvalidOperation
+from urllib.parse import urlencode
 from urllib import error, request as urllib_request
 
 from django.contrib import messages
@@ -27,12 +28,35 @@ from django.views.decorators.http import require_GET, require_POST
 from .models import AuditLog, CostEntry, Order, Product, ProductVariant, WhatsAppRecipient
 
 
+MANAGE_PRODUCTS_TABS = {
+    'secao-produtos',
+    'secao-pedidos',
+    'secao-custos',
+    'secao-whatsapp',
+    'secao-usuarios',
+}
+
+
 def _get_cart(session):
     cart = session.get('cart')
     if not isinstance(cart, dict):
         cart = {}
         session['cart'] = cart
     return cart
+
+
+def _get_manage_products_tab(request, default='secao-produtos'):
+    tab = (request.POST.get('return_tab') or request.GET.get('tab') or '').strip()
+    if tab in MANAGE_PRODUCTS_TABS:
+        return tab
+    return default
+
+
+def _redirect_manage_products_page(request, default_tab='secao-produtos', extra_params=None):
+    query = {'tab': _get_manage_products_tab(request, default=default_tab)}
+    if extra_params:
+        query.update(extra_params)
+    return redirect(f"{reverse('manage_products_page')}?{urlencode(query)}")
 
 
 def _product_payload(product):
@@ -1342,11 +1366,11 @@ def manage_products_save_page(request):
     if error:
         messages.error(request, error)
         if product_id:
-            return redirect(f"/manage/products/page/?edit={product_id}")
-        return redirect('manage_products_page')
+            return redirect(f"{reverse('manage_products_page')}?{urlencode({'tab': _get_manage_products_tab(request, 'secao-produtos'), 'edit': product_id})}")
+        return _redirect_manage_products_page(request, default_tab='secao-produtos')
 
     messages.success(request, 'Produto salvo com sucesso.')
-    return redirect(f"/manage/products/page/?edit={saved_product.id}")
+    return redirect(f"{reverse('manage_products_page')}?{urlencode({'tab': _get_manage_products_tab(request, 'secao-produtos'), 'edit': saved_product.id})}")
 
 
 @login_required
@@ -1356,7 +1380,7 @@ def manage_products_delete_page(request, product_id):
     product = get_object_or_404(Product, id=product_id)
     product.delete()
     messages.success(request, 'Produto removido com sucesso.')
-    return redirect('manage_products_page')
+    return _redirect_manage_products_page(request, default_tab='secao-produtos')
 
 
 @login_required
@@ -1403,7 +1427,7 @@ def manage_order_delivery_page(request, order_id):
                     request,
                     f'Quantidade invalida para "{item.get("name", "Item")}". Restam {remaining_quantity}.',
                 )
-                return redirect('manage_products_page')
+                return _redirect_manage_products_page(request, default_tab='secao-pedidos')
             if deliver_quantity <= 0:
                 continue
 
@@ -1416,7 +1440,7 @@ def manage_order_delivery_page(request, order_id):
 
         if not has_delivery:
             messages.error(request, 'Informe ao menos uma quantidade para entrega parcial.')
-            return redirect('manage_products_page')
+            return _redirect_manage_products_page(request, default_tab='secao-pedidos')
 
         now = timezone.now()
         has_remaining_items = any(item['remaining_quantity'] > 0 for item in order_items)
@@ -1446,7 +1470,7 @@ def manage_order_delivery_page(request, order_id):
     else:
         messages.error(request, 'Acao invalida para status de entrega.')
 
-    return redirect('manage_products_page')
+    return _redirect_manage_products_page(request, default_tab='secao-pedidos')
 
 
 @login_required
@@ -1456,19 +1480,19 @@ def manage_orders_mark_all_paid_page(request):
     informed_password = request.POST.get('bulk_paid_password', '').strip()
     if informed_password != _bulk_mark_paid_password():
         messages.error(request, 'Senha invalida para marcar todos como pagos.')
-        return redirect('manage_products_page')
+        return _redirect_manage_products_page(request, default_tab='secao-pedidos')
 
     unpaid_ids = list(Order.objects.filter(is_paid=False).values_list('id', flat=True))
     if not unpaid_ids:
         messages.info(request, 'Todos os pedidos ja estao marcados como pagos.')
-        return redirect('manage_products_page')
+        return _redirect_manage_products_page(request, default_tab='secao-pedidos')
 
     now = timezone.now()
     updated_count = Order.objects.filter(id__in=unpaid_ids).update(is_paid=True, paid_at=now)
     Order.objects.filter(id__in=unpaid_ids, mp_status__in=['', 'pending']).update(mp_status='approved_manual')
 
     messages.success(request, f'{updated_count} pedido(s) marcado(s) como pago(s).')
-    return redirect('manage_products_page')
+    return _redirect_manage_products_page(request, default_tab='secao-pedidos')
 
 
 @login_required
@@ -1478,12 +1502,12 @@ def manage_orders_mark_all_delivered_page(request):
     informed_password = request.POST.get('bulk_delivered_password', '').strip()
     if informed_password != _bulk_mark_delivered_password():
         messages.error(request, 'Senha invalida para marcar todos como entregues.')
-        return redirect('manage_products_page')
+        return _redirect_manage_products_page(request, default_tab='secao-pedidos')
 
     pending_orders = list(Order.objects.filter(is_delivered=False).order_by('id'))
     if not pending_orders:
         messages.info(request, 'Todos os pedidos ja estao marcados como entregues.')
-        return redirect('manage_products_page')
+        return _redirect_manage_products_page(request, default_tab='secao-pedidos')
 
     now = timezone.now()
     for order in pending_orders:
@@ -1497,7 +1521,7 @@ def manage_orders_mark_all_delivered_page(request):
         order.save(update_fields=['items_json', 'is_delivered', 'delivered_at'])
     updated_count = len(pending_orders)
     messages.success(request, f'{updated_count} pedido(s) marcado(s) como entregue(s).')
-    return redirect('manage_products_page')
+    return _redirect_manage_products_page(request, default_tab='secao-pedidos')
 
 
 @login_required
@@ -1507,7 +1531,7 @@ def manage_order_mark_paid_page(request, order_id):
     order = get_object_or_404(Order, id=order_id)
     if order.is_paid:
         messages.info(request, f'Pedido #{order.id} ja esta marcado como pago.')
-        return redirect('manage_products_page')
+        return _redirect_manage_products_page(request, default_tab='secao-pedidos')
 
     order.is_paid = True
     order.paid_at = timezone.now()
@@ -1521,7 +1545,7 @@ def manage_order_mark_paid_page(request, order_id):
         _send_whatsapp_notifications_for_order(order)
 
     messages.success(request, f'Pedido #{order.id} marcado como pago.')
-    return redirect('manage_products_page')
+    return _redirect_manage_products_page(request, default_tab='secao-pedidos')
 
 
 @login_required
@@ -1532,17 +1556,17 @@ def manage_order_notify_ready_page(request, order_id):
     phone = _normalize_whatsapp_phone(order.whatsapp)
     if not phone:
         messages.error(request, f'Pedido #{order.id} sem WhatsApp valido para notificacao.')
-        return redirect('manage_products_page')
+        return _redirect_manage_products_page(request, default_tab='secao-pedidos')
 
     message = _build_order_ready_whatsapp_message(order)
     try:
         _wapi_send_text(phone, message)
     except ValueError as exc:
         messages.error(request, f'Falha ao enviar WhatsApp do pedido #{order.id}: {exc}')
-        return redirect('manage_products_page')
+        return _redirect_manage_products_page(request, default_tab='secao-pedidos')
 
     messages.success(request, f'Notificacao de pedido pronto enviada para #{order.id}.')
-    return redirect('manage_products_page')
+    return _redirect_manage_products_page(request, default_tab='secao-pedidos')
 
 
 @login_required
@@ -1655,11 +1679,11 @@ def manage_order_delete_page(request, order_id):
     informed_password = request.POST.get('delete_password', '').strip()
     if informed_password != _order_delete_password():
         messages.error(request, 'Senha invalida para excluir pedido.')
-        return redirect('manage_products_page')
+        return _redirect_manage_products_page(request, default_tab='secao-pedidos')
 
     order.delete()
     messages.success(request, f'Pedido #{order_id} excluido com sucesso.')
-    return redirect('manage_products_page')
+    return _redirect_manage_products_page(request, default_tab='secao-pedidos')
 
 
 @login_required
@@ -1673,21 +1697,21 @@ def manage_users_create_page(request):
 
     if not username or not password:
         messages.error(request, 'Preencha usuÃ¡rio e senha para criar o login.')
-        return redirect('manage_products_page')
+        return _redirect_manage_products_page(request, default_tab='secao-usuarios')
 
     if password != password_confirm:
         messages.error(request, 'As senhas nÃ£o conferem.')
-        return redirect('manage_products_page')
+        return _redirect_manage_products_page(request, default_tab='secao-usuarios')
 
     if User.objects.filter(username=username).exists():
         messages.error(request, 'Este nome de usuÃ¡rio jÃ¡ existe.')
-        return redirect('manage_products_page')
+        return _redirect_manage_products_page(request, default_tab='secao-usuarios')
 
     user = User.objects.create_user(username=username, password=password)
     user.is_staff = is_staff
     user.save(update_fields=['is_staff'])
     messages.success(request, f'UsuÃ¡rio "{username}" criado com sucesso.')
-    return redirect('manage_products_page')
+    return _redirect_manage_products_page(request, default_tab='secao-usuarios')
 
 
 @login_required
@@ -1700,20 +1724,20 @@ def manage_costs_create_page(request):
 
     if not name or not amount_text:
         messages.error(request, 'Preencha nome e valor do custo.')
-        return redirect('manage_products_page')
+        return _redirect_manage_products_page(request, default_tab='secao-custos')
 
     try:
         amount = Decimal(amount_text)
     except (InvalidOperation, ValueError):
         messages.error(request, 'Valor de custo invalido.')
-        return redirect('manage_products_page')
+        return _redirect_manage_products_page(request, default_tab='secao-custos')
 
     cost = CostEntry(name=name, amount=amount)
     if receipt_file:
         cost.receipt_file = receipt_file
     cost.save()
     messages.success(request, 'Custo cadastrado com sucesso.')
-    return redirect('manage_products_page')
+    return _redirect_manage_products_page(request, default_tab='secao-custos')
 
 
 @login_required
@@ -1723,7 +1747,7 @@ def manage_costs_delete_page(request, cost_id):
     cost = get_object_or_404(CostEntry, id=cost_id)
     cost.delete()
     messages.success(request, 'Custo removido com sucesso.')
-    return redirect('manage_products_page')
+    return _redirect_manage_products_page(request, default_tab='secao-custos')
 
 
 @login_required
@@ -1736,7 +1760,7 @@ def manage_whatsapp_recipient_create_page(request):
 
     if not name or not phone:
         messages.error(request, 'Informe nome e WhatsApp validos para cadastrar.')
-        return redirect('manage_products_page')
+        return _redirect_manage_products_page(request, default_tab='secao-whatsapp')
 
     recipient, created = WhatsAppRecipient.objects.get_or_create(
         phone=phone,
@@ -1749,7 +1773,7 @@ def manage_whatsapp_recipient_create_page(request):
         recipient.active = True
         recipient.save(update_fields=['name', 'active'])
         messages.success(request, f'Contato WhatsApp "{name}" atualizado.')
-    return redirect('manage_products_page')
+    return _redirect_manage_products_page(request, default_tab='secao-whatsapp')
 
 
 @login_required
@@ -1759,7 +1783,7 @@ def manage_whatsapp_recipient_delete_page(request, recipient_id):
     recipient = get_object_or_404(WhatsAppRecipient, id=recipient_id)
     recipient.delete()
     messages.success(request, 'Contato WhatsApp removido.')
-    return redirect('manage_products_page')
+    return _redirect_manage_products_page(request, default_tab='secao-whatsapp')
 
 
 @require_GET

@@ -382,18 +382,52 @@
             const manualOrderOverlay = document.getElementById('manual-order-overlay');
             const manualOrderModal = document.getElementById('manual-order-modal');
             const closeManualOrderModalBtn = document.getElementById('close-manual-order-modal');
+            let currentSectionId = 'secao-produtos';
+
+            function syncUrlTab(targetId) {
+                const params = new URLSearchParams(window.location.search);
+                params.set('tab', targetId);
+                if (targetId !== 'secao-pedidos') {
+                    params.delete('open_manual');
+                }
+                const cleanQuery = params.toString();
+                const nextUrl = `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ''}`;
+                if (window.history && window.history.replaceState) {
+                    window.history.replaceState({}, '', nextUrl);
+                }
+            }
+
+            function ensureReturnTabInput(form) {
+                if (!form) {
+                    return;
+                }
+                let input = form.querySelector('input[name="return_tab"]');
+                if (!input) {
+                    input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'return_tab';
+                    form.appendChild(input);
+                }
+                input.value = currentSectionId;
+            }
 
             function showSection(targetId) {
+                currentSectionId = targetId;
                 sections.forEach((section) => {
                     section.classList.toggle('is-visible', section.id === targetId);
                 });
                 tabButtons.forEach((button) => {
                     button.classList.toggle('is-active', button.dataset.target === targetId);
                 });
+                syncUrlTab(targetId);
             }
 
             tabButtons.forEach((button) => {
                 button.addEventListener('click', () => showSection(button.dataset.target));
+            });
+
+            document.querySelectorAll('form').forEach((form) => {
+                form.addEventListener('submit', () => ensureReturnTabInput(form));
             });
 
             function openManualOrderModal() {
@@ -619,6 +653,8 @@
             const tab = params.get('tab');
             if (tab) {
                 showSection(tab);
+            } else {
+                showSection('secao-produtos');
             }
             if (params.get('open_manual') === '1') {
                 showSection('secao-pedidos');
