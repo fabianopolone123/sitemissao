@@ -517,6 +517,11 @@ h1 {
     color: #8b2323;
 }
 
+.status-chip-warning {
+    background: #fff2d9;
+    color: #915f00;
+}
+
 .panel-list-inactive {
     background: #fcf6f6;
 }
@@ -814,6 +819,38 @@ h1 {
 
 .order-actions form {
     margin: 0;
+}
+
+.partial-delivery-form {
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid #e3ddd2;
+    border-radius: 10px;
+    background: #fffaf1;
+    display: grid;
+    gap: 8px;
+}
+
+.partial-delivery-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 88px;
+    gap: 8px;
+    align-items: center;
+    font-size: 0.92rem;
+}
+
+.partial-delivery-row span {
+    min-width: 0;
+    color: #3d3730;
+}
+
+.partial-delivery-row input {
+    width: 100%;
+    border: 1px solid #d7d1c8;
+    border-radius: 8px;
+    padding: 8px;
+    font: inherit;
+    background: #fff;
 }
 
 @media (max-width: 900px) {

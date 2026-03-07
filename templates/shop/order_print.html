@@ -151,13 +151,13 @@
             </p>
             <div class="items">
                 <p class="items-title">ITENS</p>
-                {% for item in order.items_json %}
+                {% for item in print_items %}
                     <div class="item-row">
                         <span class="item-qty">{{ item.quantity }}x</span>
                         <span class="item-name">{{ item.name }}</span>
                     </div>
                 {% empty %}
-                    <p class="item-empty">Sem itens.</p>
+                    <p class="item-empty">Sem itens para imprimir.</p>
                 {% endfor %}
             </div>
         </section>

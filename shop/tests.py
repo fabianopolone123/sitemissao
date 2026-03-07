@@ -254,6 +254,53 @@ class StoreFlowTests(TestCase):
         order.refresh_from_db()
         self.assertTrue(order.is_delivered)
         self.assertIsNotNone(order.delivered_at)
+        self.assertEqual(order.items_json[0]['delivered_quantity'], 1)
+
+    def test_manage_order_delivery_page_registers_partial_delivery(self):
+        order = Order.objects.create(
+            first_name='Cliente',
+            last_name='Parcial',
+            whatsapp='16999997777',
+            payment_method=Order.PAYMENT_PIX,
+            total=Decimal('30.00'),
+            pix_code='',
+            items_json=[{'id': self.product.id, 'name': self.product.name, 'price': '10.00', 'quantity': 5, 'subtotal': '50.00'}],
+            mp_status='pending',
+        )
+
+        self.client.login(username='admin', password='senha-segura')
+        response = self.client.post(
+            reverse('manage_order_delivery_page', args=[order.id]),
+            {'action': 'mark_partial_delivery', 'deliver_item_0': '3'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        order.refresh_from_db()
+        self.assertFalse(order.is_delivered)
+        self.assertIsNone(order.delivered_at)
+        self.assertEqual(order.items_json[0]['delivered_quantity'], 3)
+        self.assertEqual(self.client.session.get('print_order_scope'), 'last_delivery')
+
+    def test_manage_order_print_page_shows_only_remaining_items_after_partial_delivery(self):
+        order = Order.objects.create(
+            first_name='Cliente',
+            last_name='Saldo',
+            whatsapp='16999997777',
+            payment_method=Order.PAYMENT_PIX,
+            total=Decimal('30.00'),
+            pix_code='',
+            items_json=[{'id': self.product.id, 'name': self.product.name, 'price': '10.00', 'quantity': 5, 'delivered_quantity': 3, 'subtotal': '50.00'}],
+            mp_status='pending',
+        )
+
+        self.client.login(username='admin', password='senha-segura')
+        response = self.client.get(
+            reverse('manage_order_print_page', args=[order.id]) + '?scope=remaining'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '2x')
+        self.assertNotContains(response, '5x')
 
     def test_manage_orders_mark_all_delivered_requires_password(self):
         order = Order.objects.create(
@@ -285,6 +332,7 @@ class StoreFlowTests(TestCase):
         order.refresh_from_db()
         self.assertTrue(order.is_delivered)
         self.assertIsNotNone(order.delivered_at)
+        self.assertEqual(order.items_json[0]['delivered_quantity'], 1)
 
     @patch('shop.views._wapi_send_text')
     def test_manage_order_notify_ready_page_sends_whatsapp(self, send_text_mock):

@@ -12,6 +12,7 @@
 </head>
 <body
     data-print-order-id="{% if print_order_id %}{{ print_order_id }}{% endif %}"
+    data-print-order-scope="{% if print_order_scope %}{{ print_order_scope }}{% endif %}"
     data-print-order-template="{{ print_order_template_url }}"
 >
     <header class="manage-header">
@@ -147,15 +148,15 @@
             >
             <div class="orders-list">
                 {% for order in orders %}
-                    <article class="order-card {% if order.is_paid %}order-card-paid{% else %}order-card-unpaid{% endif %}" data-order-id="{{ order.id }}" data-order-customer="{{ order.first_name }} {{ order.last_name }}" data-order-search="#{{ order.id }} {{ order.first_name }} {{ order.last_name }} {{ order.whatsapp }} {{ order.items_json|safe }}">
+                    <article class="order-card {% if order.is_paid %}order-card-paid{% else %}order-card-unpaid{% endif %}" data-order-id="{{ order.id }}" data-order-customer="{{ order.first_name }} {{ order.last_name }}" data-order-remaining-items="{{ order.remaining_delivery_items_json|escape }}" data-order-search="#{{ order.id }} {{ order.first_name }} {{ order.last_name }} {{ order.whatsapp }} {{ order.items_json|safe }}">
                         <div class="order-head">
                             <strong>Pedido #{{ order.id }}</strong>
                             <div>
                                 <span class="status-chip {% if order.is_paid %}status-chip-active{% else %}status-chip-inactive{% endif %}">
                                     {% if order.is_paid %}Pago{% else %}Não pago{% endif %}
                                 </span>
-                                <span class="status-chip {% if order.is_delivered %}status-chip-active{% else %}status-chip-inactive{% endif %}">
-                                    {% if order.is_delivered %}Entregue{% else %}Não entregue{% endif %}
+                                <span class="status-chip {% if order.is_delivered %}status-chip-active{% elif order.is_partially_delivered %}status-chip-warning{% else %}status-chip-inactive{% endif %}">
+                                    {% if order.is_delivered %}Entregue{% elif order.is_partially_delivered %}Entrega parcial{% else %}Não entregue{% endif %}
                                 </span>
                             </div>
                         </div>
@@ -170,31 +171,69 @@
                         <div class="order-items">
                             <strong>Itens:</strong>
                             <ul>
-                                {% for item in order.items_json %}
-                                    <li>{{ item.quantity }}x {{ item.name }} (R$ {{ item.price }}) - subtotal R$ {{ item.subtotal }}</li>
+                                {% for item in order.delivery_items %}
+                                    <li>
+                                        {{ item.quantity }}x {{ item.name }} (R$ {{ item.price }}) - subtotal R$ {{ item.subtotal }}
+                                        {% if item.delivered_quantity %}
+                                            | retirados {{ item.delivered_quantity }} | faltam {{ item.remaining_quantity }}
+                                        {% endif %}
+                                    </li>
                                 {% empty %}
                                     <li>Sem itens registrados.</li>
                                 {% endfor %}
                             </ul>
                         </div>
+                        {% if order.has_remaining_delivery %}
+                            <form method="post" action="{% url 'manage_order_delivery_page' order.id %}" class="partial-delivery-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="mark_partial_delivery">
+                                <strong>Entrega parcial</strong>
+                                {% for item in order.delivery_items %}
+                                    {% if item.remaining_quantity > 0 %}
+                                        <label class="partial-delivery-row">
+                                            <span>{{ item.name }} | faltam {{ item.remaining_quantity }}</span>
+                                            <input
+                                                type="number"
+                                                name="deliver_item_{{ forloop.counter0 }}"
+                                                min="0"
+                                                max="{{ item.remaining_quantity }}"
+                                                value="0"
+                                            >
+                                        </label>
+                                    {% endif %}
+                                {% endfor %}
+                                <button type="submit" class="secondary-button">Registrar entrega parcial e imprimir</button>
+                            </form>
+                        {% endif %}
                         <div class="order-actions">
-                            <button type="button" class="secondary-button order-print-kitchen-btn">Imprimir via cozinha (tablet)</button>
-                            <button type="button" class="secondary-button order-print-pc-btn">Imprimir PC</button>
+                            {% if order.has_remaining_delivery %}
+                                <button type="button" class="secondary-button order-print-kitchen-btn">Imprimir restante (tablet)</button>
+                                <button type="button" class="secondary-button order-print-pc-btn">Imprimir restante PC</button>
+                            {% endif %}
                             {% if not order.is_paid %}
                                 <form method="post" action="{% url 'manage_order_mark_paid_page' order.id %}">
                                     {% csrf_token %}
                                     <button type="submit" class="add-btn">Marcar como pago</button>
                                 </form>
                             {% endif %}
-                            {% if not order.is_delivered %}
+                            {% if order.has_remaining_delivery %}
                                 <form method="post" action="{% url 'manage_order_delivery_page' order.id %}">
                                     {% csrf_token %}
                                     <input type="hidden" name="action" value="mark_delivered">
-                                    <button type="submit" class="secondary-button">Marcar como entregue</button>
+                                    <button type="submit" class="secondary-button">Entregar tudo que falta</button>
                                 </form>
+                            {% endif %}
+                            {% if not order.is_delivered %}
                                 <form method="post" action="{% url 'manage_order_notify_ready_page' order.id %}">
                                     {% csrf_token %}
                                     <button type="submit" class="secondary-button">Avisar pedido pronto</button>
+                                </form>
+                            {% endif %}
+                            {% if order.is_delivered or order.is_partially_delivered %}
+                                <form method="post" action="{% url 'manage_order_delivery_page' order.id %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="mark_undelivered">
+                                    <button type="submit" class="secondary-button">Zerar entregas</button>
                                 </form>
                             {% endif %}
                             <form method="post" action="{% url 'manage_order_delete_page' order.id %}" class="order-delete-form">
@@ -476,14 +515,12 @@
             function buildKitchenTicketFromCard(card) {
                 const orderId = card.dataset.orderId || '';
                 const customer = card.dataset.orderCustomer || '-';
-                const itemLines = Array.from(card.querySelectorAll('.order-items li'))
-                    .map((li) => li.textContent.trim())
-                    .filter((line) => line && !line.toLowerCase().includes('sem itens registrados'))
-                    .map((line) => line
-                        .replace(/\(R\$\s*[^)]*\)/gi, '')
-                        .replace(/-\s*subtotal\s*R\$\s*.*$/i, '')
-                        .replace(/\s{2,}/g, ' ')
-                        .trim());
+                let remainingItems = [];
+                try {
+                    remainingItems = JSON.parse(card.dataset.orderRemainingItems || '[]');
+                } catch (error) {
+                    remainingItems = [];
+                }
 
                 const lines = [
                     'VIA COZINHA',
@@ -492,13 +529,13 @@
                     '',
                     'Itens:',
                 ];
-                if (itemLines.length) {
-                    itemLines.forEach((line) => {
-                        lines.push(`- ${line}`);
+                if (remainingItems.length) {
+                    remainingItems.forEach((item) => {
+                        lines.push(`- ${item.quantity}x ${item.name}`);
                         lines.push('');
                     });
                 } else {
-                    lines.push('- Sem itens');
+                    lines.push('- Sem itens pendentes');
                 }
                 return lines.join('\n');
             }
@@ -533,9 +570,11 @@
             }
 
             const printOrderId = document.body.dataset.printOrderId;
+            const printOrderScope = document.body.dataset.printOrderScope || 'remaining';
             const printOrderTemplate = document.body.dataset.printOrderTemplate;
             if (printOrderId && printOrderTemplate) {
-                const printUrl = withAutoPrint(printOrderTemplate.replace('/0/', `/${printOrderId}/`));
+                const basePrintUrl = printOrderTemplate.replace('/0/', `/${printOrderId}/`);
+                const printUrl = withAutoPrint(`${basePrintUrl}${basePrintUrl.includes('?') ? '&' : '?'}scope=${encodeURIComponent(printOrderScope)}`);
                 window.setTimeout(() => {
                     window.open(printUrl, '_blank', 'noopener,noreferrer');
                 }, 250);
@@ -567,7 +606,8 @@
                         window.alert('Nao foi possivel abrir a impressao deste pedido.');
                         return;
                     }
-                    const printUrl = withAutoPrint(printOrderTemplate.replace('/0/', `/${orderId}/`));
+                    const basePrintUrl = printOrderTemplate.replace('/0/', `/${orderId}/`);
+                    const printUrl = withAutoPrint(`${basePrintUrl}${basePrintUrl.includes('?') ? '&' : '?'}scope=remaining`);
                     const popup = window.open(printUrl, '_blank', 'noopener,noreferrer');
                     if (!popup) {
                         printUsingHiddenFrame(printUrl);

@@ -672,8 +672,110 @@ def _is_valid_public_print_token(order_id, token):
     return unsigned == str(order_id)
 
 
-def _order_print_paper_height_mm(order):
-    items = order.items_json if isinstance(order.items_json, list) else []
+def _parse_int(value, default=0):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _normalize_order_items(items):
+    normalized = []
+    if not isinstance(items, list):
+        return normalized
+
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+
+        quantity = max(0, _parse_int(item.get('quantity', 0), 0))
+        delivered_quantity = max(0, _parse_int(item.get('delivered_quantity', 0), 0))
+        delivered_quantity = min(delivered_quantity, quantity)
+        remaining_quantity = max(quantity - delivered_quantity, 0)
+
+        normalized_item = dict(item)
+        normalized_item['quantity'] = quantity
+        normalized_item['delivered_quantity'] = delivered_quantity
+        normalized_item['remaining_quantity'] = remaining_quantity
+        normalized.append(normalized_item)
+
+    return normalized
+
+
+def _build_print_items_from_order(order, scope='remaining'):
+    items = _normalize_order_items(order.items_json)
+    print_items = []
+    for item in items:
+        if scope == 'full':
+            quantity = item['quantity']
+        elif scope == 'delivered':
+            quantity = item['delivered_quantity']
+        else:
+            quantity = item['remaining_quantity']
+
+        if quantity <= 0:
+            continue
+
+        print_item = dict(item)
+        print_item['quantity'] = quantity
+        print_items.append(print_item)
+    return print_items
+
+
+def _build_order_last_delivery_print_items(request, order_id):
+    payload = request.session.get('print_order_delivery_payload') or {}
+    if str(payload.get('order_id', '')) != str(order_id):
+        return []
+
+    items = []
+    for item in payload.get('items', []):
+        if not isinstance(item, dict):
+            continue
+        quantity = max(0, _parse_int(item.get('quantity', 0), 0))
+        if quantity <= 0:
+            continue
+        normalized_item = dict(item)
+        normalized_item['quantity'] = quantity
+        items.append(normalized_item)
+
+    request.session.pop('print_order_delivery_payload', None)
+    request.session.modified = True
+    return items
+
+
+def _decorate_order_for_delivery(order):
+    items = _normalize_order_items(order.items_json)
+    remaining_items = []
+    delivered_items = []
+
+    for item in items:
+        if item['remaining_quantity'] > 0:
+            remaining_item = dict(item)
+            remaining_item['quantity'] = item['remaining_quantity']
+            remaining_items.append(remaining_item)
+        if item['delivered_quantity'] > 0:
+            delivered_item = dict(item)
+            delivered_item['quantity'] = item['delivered_quantity']
+            delivered_items.append(delivered_item)
+
+    order.delivery_items = items
+    order.remaining_delivery_items = remaining_items
+    order.delivered_delivery_items = delivered_items
+    order.remaining_delivery_items_json = json.dumps(
+        [
+            {
+                'name': item.get('name', 'Item'),
+                'quantity': item.get('quantity', 0),
+            }
+            for item in remaining_items
+        ]
+    )
+    order.has_remaining_delivery = any(item['remaining_quantity'] > 0 for item in items)
+    order.is_partially_delivered = bool(delivered_items) and order.has_remaining_delivery
+    return order
+
+
+def _order_print_paper_height_mm(items):
     line_count = 0
     for item in items:
         qty = item.get('quantity', 1)
@@ -748,6 +850,8 @@ def manage_products_page(request):
     whatsapp_recipients = WhatsAppRecipient.objects.all().order_by('name')
     users = User.objects.all().order_by('username')
     print_order_id = request.session.pop('print_order_id', None)
+    print_order_scope = request.session.pop('print_order_scope', '')
+    orders = [_decorate_order_for_delivery(order) for order in orders]
     if edit_id:
         editing_product = get_object_or_404(Product, id=edit_id)
         editing_variants_text = '\n'.join(
@@ -770,6 +874,7 @@ def manage_products_page(request):
             'whatsapp_recipients': whatsapp_recipients,
             'users': users,
             'print_order_id': print_order_id,
+            'print_order_scope': print_order_scope,
             'print_order_template_url': reverse('manage_order_print_page', args=[0]),
         },
     )
@@ -1260,17 +1365,83 @@ def manage_products_delete_page(request, product_id):
 def manage_order_delivery_page(request, order_id):
     order = get_object_or_404(Order, id=order_id)
     action = request.POST.get('action', '').strip().lower()
+    order_items = _normalize_order_items(order.items_json)
 
     if action == 'mark_delivered':
+        delivered_now_items = []
+        for item in order_items:
+            remaining_quantity = item['remaining_quantity']
+            item['delivered_quantity'] = item['quantity']
+            item['remaining_quantity'] = 0
+            if remaining_quantity > 0:
+                delivered_item = dict(item)
+                delivered_item['quantity'] = remaining_quantity
+                delivered_now_items.append(delivered_item)
+
+        now = timezone.now()
+        order.items_json = order_items
         order.is_delivered = True
-        order.delivered_at = timezone.now()
-        order.save(update_fields=['is_delivered', 'delivered_at'])
+        order.delivered_at = now
+        order.save(update_fields=['items_json', 'is_delivered', 'delivered_at'])
         request.session['print_order_id'] = order.id
+        request.session['print_order_scope'] = 'last_delivery'
+        request.session['print_order_delivery_payload'] = {
+            'order_id': order.id,
+            'items': delivered_now_items,
+        }
         messages.success(request, f'Pedido #{order.id} marcado como entregue.')
+    elif action == 'mark_partial_delivery':
+        delivered_now_items = []
+        has_delivery = False
+
+        for index, item in enumerate(order_items):
+            field_name = f'deliver_item_{index}'
+            deliver_quantity = max(0, _parse_int(request.POST.get(field_name, 0), 0))
+            remaining_quantity = item['remaining_quantity']
+            if deliver_quantity > remaining_quantity:
+                messages.error(
+                    request,
+                    f'Quantidade invalida para "{item.get("name", "Item")}". Restam {remaining_quantity}.',
+                )
+                return redirect('manage_products_page')
+            if deliver_quantity <= 0:
+                continue
+
+            has_delivery = True
+            item['delivered_quantity'] += deliver_quantity
+            item['remaining_quantity'] = max(item['quantity'] - item['delivered_quantity'], 0)
+            delivered_item = dict(item)
+            delivered_item['quantity'] = deliver_quantity
+            delivered_now_items.append(delivered_item)
+
+        if not has_delivery:
+            messages.error(request, 'Informe ao menos uma quantidade para entrega parcial.')
+            return redirect('manage_products_page')
+
+        now = timezone.now()
+        has_remaining_items = any(item['remaining_quantity'] > 0 for item in order_items)
+        order.items_json = order_items
+        order.is_delivered = not has_remaining_items
+        order.delivered_at = now if not has_remaining_items else None
+        order.save(update_fields=['items_json', 'is_delivered', 'delivered_at'])
+        request.session['print_order_id'] = order.id
+        request.session['print_order_scope'] = 'last_delivery'
+        request.session['print_order_delivery_payload'] = {
+            'order_id': order.id,
+            'items': delivered_now_items,
+        }
+        if order.is_delivered:
+            messages.success(request, f'Pedido #{order.id} entregue por completo.')
+        else:
+            messages.success(request, f'Entrega parcial registrada no pedido #{order.id}.')
     elif action == 'mark_undelivered':
+        for item in order_items:
+            item['delivered_quantity'] = 0
+            item['remaining_quantity'] = item['quantity']
+        order.items_json = order_items
         order.is_delivered = False
         order.delivered_at = None
-        order.save(update_fields=['is_delivered', 'delivered_at'])
+        order.save(update_fields=['items_json', 'is_delivered', 'delivered_at'])
         messages.success(request, f'Pedido #{order.id} marcado como nao entregue.')
     else:
         messages.error(request, 'Acao invalida para status de entrega.')
@@ -1309,13 +1480,22 @@ def manage_orders_mark_all_delivered_page(request):
         messages.error(request, 'Senha invalida para marcar todos como entregues.')
         return redirect('manage_products_page')
 
-    pending_ids = list(Order.objects.filter(is_delivered=False).values_list('id', flat=True))
-    if not pending_ids:
+    pending_orders = list(Order.objects.filter(is_delivered=False).order_by('id'))
+    if not pending_orders:
         messages.info(request, 'Todos os pedidos ja estao marcados como entregues.')
         return redirect('manage_products_page')
 
     now = timezone.now()
-    updated_count = Order.objects.filter(id__in=pending_ids).update(is_delivered=True, delivered_at=now)
+    for order in pending_orders:
+        items = _normalize_order_items(order.items_json)
+        for item in items:
+            item['delivered_quantity'] = item['quantity']
+            item['remaining_quantity'] = 0
+        order.items_json = items
+        order.is_delivered = True
+        order.delivered_at = now
+        order.save(update_fields=['items_json', 'is_delivered', 'delivered_at'])
+    updated_count = len(pending_orders)
     messages.success(request, f'{updated_count} pedido(s) marcado(s) como entregue(s).')
     return redirect('manage_products_page')
 
@@ -1423,13 +1603,21 @@ def manage_order_manual_create_page(request):
 @require_GET
 def manage_order_print_page(request, order_id):
     order = get_object_or_404(Order, id=order_id)
+    scope = request.GET.get('scope', '').strip().lower() or 'remaining'
+    if scope == 'last_delivery':
+        print_items = _build_order_last_delivery_print_items(request, order.id)
+    elif scope == 'full':
+        print_items = _build_print_items_from_order(order, scope='full')
+    else:
+        print_items = _build_print_items_from_order(order, scope='remaining')
     return render(
         request,
         'shop/order_print.html',
         {
             'order': order,
+            'print_items': print_items,
             'printed_at': timezone.localtime(timezone.now()),
-            'print_paper_height_mm': _order_print_paper_height_mm(order),
+            'print_paper_height_mm': _order_print_paper_height_mm(print_items),
         },
     )
 
@@ -1445,14 +1633,16 @@ def order_print_public_page(request, order_id):
 
     order = get_object_or_404(Order, id=order_id)
     kitchen_only = request.GET.get('copy', '').strip().lower() == 'kitchen'
+    print_items = _build_print_items_from_order(order, scope='full')
     return render(
         request,
         'shop/order_print.html',
         {
             'order': order,
+            'print_items': print_items,
             'printed_at': timezone.localtime(timezone.now()),
             'kitchen_only': kitchen_only,
-            'print_paper_height_mm': _order_print_paper_height_mm(order),
+            'print_paper_height_mm': _order_print_paper_height_mm(print_items),
         },
     )
 
