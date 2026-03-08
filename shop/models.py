@@ -102,6 +102,18 @@ class CostEntry(models.Model):
         return f'{self.name} - R$ {self.amount:.2f}'
 
 
+class DonationEntry(models.Model):
+    name = models.CharField(max_length=160)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        return f'{self.name} - R$ {self.amount:.2f}'
+
+
 class AuditLog(models.Model):
     user = models.ForeignKey('auth.User', on_delete=models.SET_NULL, blank=True, null=True)
     method = models.CharField(max_length=10)

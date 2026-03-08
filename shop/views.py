@@ -25,7 +25,7 @@ from django.utils.crypto import constant_time_compare
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
-from .models import AuditLog, CostEntry, Order, Product, ProductVariant, WhatsAppRecipient
+from .models import AuditLog, CostEntry, DonationEntry, Order, Product, ProductVariant, WhatsAppRecipient
 
 
 MANAGE_PRODUCTS_TABS = {
@@ -284,6 +284,10 @@ def _audit_action_label(log):
         return 'Custo cadastrado'
     if '/manage/costs/page/delete' in path:
         return 'Custo removido'
+    if '/manage/donations/page/create' in path:
+        return 'Doacao cadastrada'
+    if '/manage/donations/page/delete' in path:
+        return 'Doacao removida'
     if '/manage/whatsapp/page/create' in path:
         return 'Contato WhatsApp cadastrado'
     if '/manage/whatsapp/page/delete' in path:
@@ -871,6 +875,8 @@ def manage_products_page(request):
     orders = Order.objects.all().order_by('-created_at')
     costs = CostEntry.objects.all().order_by('-created_at')[:120]
     total_costs = CostEntry.objects.aggregate(total=Sum('amount')).get('total') or Decimal('0.00')
+    donations = DonationEntry.objects.all().order_by('-created_at')[:120]
+    total_donations = DonationEntry.objects.aggregate(total=Sum('amount')).get('total') or Decimal('0.00')
     whatsapp_recipients = WhatsAppRecipient.objects.all().order_by('name')
     users = User.objects.all().order_by('username')
     print_order_id = request.session.pop('print_order_id', None)
@@ -895,6 +901,8 @@ def manage_products_page(request):
             'orders': orders,
             'costs': costs,
             'total_costs': total_costs,
+            'donations': donations,
+            'total_donations': total_donations,
             'whatsapp_recipients': whatsapp_recipients,
             'users': users,
             'print_order_id': print_order_id,
@@ -929,10 +937,11 @@ def manage_reports_page(request):
     recent_orders = orders.order_by('-created_at')[:120]
     delivered_orders = orders.filter(is_delivered=True).order_by('-delivered_at', '-id')[:80]
     total_costs = CostEntry.objects.aggregate(total=Sum('amount')).get('total') or Decimal('0.00')
+    total_donations = DonationEntry.objects.aggregate(total=Sum('amount')).get('total') or Decimal('0.00')
     total_orders = orders.count()
     total_paid_orders = paid_orders.count()
     total_revenue = paid_orders.aggregate(total=Sum('total')).get('total') or Decimal('0.00')
-    net_profit = total_revenue - total_costs
+    net_profit = total_revenue + total_donations - total_costs
     average_ticket = paid_orders.aggregate(avg=Avg('total')).get('avg') or Decimal('0.00')
 
     daily_rows = (
@@ -994,6 +1003,7 @@ def manage_reports_page(request):
             'total_paid_orders': total_paid_orders,
             'total_revenue': total_revenue,
             'total_costs': total_costs,
+            'total_donations': total_donations,
             'net_profit': net_profit,
             'average_ticket': average_ticket,
             'chart_daily_labels': chart_daily_labels,
@@ -1031,12 +1041,14 @@ def manage_reports_export_pdf(request):
         orders = Order.objects.all().order_by('-created_at')
         paid_orders = orders.filter(is_paid=True)
         costs = CostEntry.objects.all().order_by('-created_at')
+        donations = DonationEntry.objects.all().order_by('-created_at')
 
         total_orders = orders.count()
         total_paid_orders = paid_orders.count()
         total_revenue = paid_orders.aggregate(total=Sum('total')).get('total') or Decimal('0.00')
         total_costs = costs.aggregate(total=Sum('amount')).get('total') or Decimal('0.00')
-        net_profit = total_revenue - total_costs
+        total_donations = donations.aggregate(total=Sum('amount')).get('total') or Decimal('0.00')
+        net_profit = total_revenue + total_donations - total_costs
         average_ticket = paid_orders.aggregate(avg=Avg('total')).get('avg') or Decimal('0.00')
 
         product_counter = {}
@@ -1072,7 +1084,8 @@ def manage_reports_export_pdf(request):
         summary_data = [
             ['Total de pedidos', str(total_orders), 'Pedidos pagos', str(total_paid_orders)],
             ['Faturamento', f'R$ {total_revenue:.2f}', 'Custos', f'R$ {total_costs:.2f}'],
-            ['Lucro', f'R$ {net_profit:.2f}', 'Ticket medio', f'R$ {average_ticket:.2f}'],
+            ['Doacoes', f'R$ {total_donations:.2f}', 'Lucro', f'R$ {net_profit:.2f}'],
+            ['Ticket medio', f'R$ {average_ticket:.2f}', '', ''],
         ]
         summary_table = Table(summary_data, colWidths=[4.2 * cm, 4.2 * cm, 4.2 * cm, 4.2 * cm])
         summary_table.setStyle(
@@ -1747,6 +1760,42 @@ def manage_costs_delete_page(request, cost_id):
     cost = get_object_or_404(CostEntry, id=cost_id)
     cost.delete()
     messages.success(request, 'Custo removido com sucesso.')
+    return _redirect_manage_products_page(request, default_tab='secao-custos')
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_POST
+def manage_donations_create_page(request):
+    name = request.POST.get('name', '').strip()
+    amount_text = request.POST.get('amount', '').strip().replace(',', '.')
+
+    if not name or not amount_text:
+        messages.error(request, 'Preencha nome e valor da doacao.')
+        return _redirect_manage_products_page(request, default_tab='secao-custos')
+
+    try:
+        amount = Decimal(amount_text)
+    except (InvalidOperation, ValueError):
+        messages.error(request, 'Valor de doacao invalido.')
+        return _redirect_manage_products_page(request, default_tab='secao-custos')
+
+    if amount <= 0:
+        messages.error(request, 'Informe um valor de doacao maior que zero.')
+        return _redirect_manage_products_page(request, default_tab='secao-custos')
+
+    DonationEntry.objects.create(name=name, amount=amount)
+    messages.success(request, 'Doacao cadastrada com sucesso.')
+    return _redirect_manage_products_page(request, default_tab='secao-custos')
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_POST
+def manage_donations_delete_page(request, donation_id):
+    donation = get_object_or_404(DonationEntry, id=donation_id)
+    donation.delete()
+    messages.success(request, 'Doacao removida com sucesso.')
     return _redirect_manage_products_page(request, default_tab='secao-custos')
 
 

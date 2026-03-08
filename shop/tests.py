@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import Order, Product, ProductVariant
+from .models import DonationEntry, Order, Product, ProductVariant
 
 
 class StoreFlowTests(TestCase):
@@ -140,6 +140,36 @@ class StoreFlowTests(TestCase):
         response = self.client.get(reverse('manage_reports_page'))
 
         self.assertEqual(response.status_code, 200)
+
+    def test_manage_reports_includes_donations_in_profit(self):
+        Order.objects.create(
+            first_name='Cliente',
+            last_name='Pago',
+            whatsapp='16999990000',
+            payment_method=Order.PAYMENT_CASH,
+            total=Decimal('20.00'),
+            pix_code='',
+            items_json=[{'id': self.product.id, 'name': self.product.name, 'price': '20.00', 'quantity': 1, 'subtotal': '20.00'}],
+            is_paid=True,
+        )
+        DonationEntry.objects.create(name='Doacao teste', amount=Decimal('5.00'))
+
+        self.client.login(username='admin', password='senha-segura')
+        response = self.client.get(reverse('manage_reports_page'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'R$ 5,00')
+        self.assertContains(response, 'R$ 25,00')
+
+    def test_manage_donations_create_page_creates_positive_entry(self):
+        self.client.login(username='admin', password='senha-segura')
+        response = self.client.post(
+            reverse('manage_donations_create_page'),
+            {'name': 'Oferta especial', 'amount': '12.50', 'return_tab': 'secao-custos'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(DonationEntry.objects.filter(name='Oferta especial', amount=Decimal('12.50')).exists())
 
     def test_manage_sales_create_order_card_defaults_to_unpaid(self):
         self.client.login(username='admin', password='senha-segura')

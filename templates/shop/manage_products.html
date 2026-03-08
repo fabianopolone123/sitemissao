@@ -252,6 +252,7 @@
         <section id="secao-custos" class="orders-section section-card manage-section">
             <h2>Cadastro de custos</h2>
             <p class="cart-meta">Total de custos cadastrados: <strong>R$ {{ total_costs|floatformat:2 }}</strong></p>
+            <p class="cart-meta">Total de doações cadastradas: <strong>R$ {{ total_donations|floatformat:2 }}</strong></p>
 
             <form class="checkout-form user-create-form" method="post" action="{% url 'manage_costs_create_page' %}" enctype="multipart/form-data">
                 {% csrf_token %}
@@ -281,6 +282,32 @@
                     </article>
                 {% empty %}
                     <p>Nenhum custo cadastrado.</p>
+                {% endfor %}
+            </div>
+
+            <h2 style="margin-top: 18px;">Lançar doação</h2>
+            <form class="checkout-form user-create-form" method="post" action="{% url 'manage_donations_create_page' %}">
+                {% csrf_token %}
+                <input type="text" name="name" placeholder="Nome da doação" required>
+                <input type="text" name="amount" placeholder="Valor (ex: 15.00)" required>
+                <button class="add-btn" type="submit">Cadastrar doação</button>
+            </form>
+
+            <div class="panel-list">
+                {% for donation in donations %}
+                    <article class="panel-row panel-row-full">
+                        <div>
+                            <strong>{{ donation.name }}</strong>
+                            <div class="cart-meta">Valor: R$ {{ donation.amount|floatformat:2 }}</div>
+                            <div class="cart-meta">Data: {{ donation.created_at|date:"d/m/Y H:i" }}</div>
+                            <form method="post" action="{% url 'manage_donations_delete_page' donation.id %}" onsubmit="return confirm('Deseja remover esta doação?');" style="margin-top: 6px;">
+                                {% csrf_token %}
+                                <button type="submit" class="danger-btn">Remover</button>
+                            </form>
+                        </div>
+                    </article>
+                {% empty %}
+                    <p>Nenhuma doação cadastrada.</p>
                 {% endfor %}
             </div>
         </section>

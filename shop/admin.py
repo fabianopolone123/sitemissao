@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Order, Product, ProductVariant
+from .models import DonationEntry, Order, Product, ProductVariant
 
 
 class ProductVariantInline(admin.TabularInline):
@@ -22,3 +22,9 @@ class OrderAdmin(admin.ModelAdmin):
     list_filter = ('payment_method', 'created_at')
     search_fields = ('first_name', 'last_name', 'whatsapp')
     readonly_fields = ('pix_code', 'items_json', 'created_at')
+
+
+@admin.register(DonationEntry)
+class DonationEntryAdmin(admin.ModelAdmin):
+    list_display = ('name', 'amount', 'created_at')
+    search_fields = ('name',)
