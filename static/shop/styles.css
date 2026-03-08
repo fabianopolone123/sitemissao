@@ -672,6 +672,24 @@ h1 {
     padding: 12px;
 }
 
+.report-profit-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.report-profit-summary {
+    margin-top: 10px;
+}
+
+.report-profit-grid {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+}
+
 .report-chart-shell {
     position: relative;
     height: 260px;

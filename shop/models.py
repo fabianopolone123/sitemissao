@@ -114,6 +114,35 @@ class DonationEntry(models.Model):
         return f'{self.name} - R$ {self.amount:.2f}'
 
 
+class ProfitDistributionConfig(models.Model):
+    base_amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Configuracao de distribuicao de lucro'
+        verbose_name_plural = 'Configuracoes de distribuicao de lucro'
+
+    def __str__(self) -> str:
+        if self.base_amount is None:
+            return 'Distribuicao usando lucro automatico'
+        return f'Distribuicao manual - R$ {self.base_amount:.2f}'
+
+
+class ProfitDistributionPerson(models.Model):
+    name = models.CharField(max_length=120, unique=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'Pessoa da distribuicao de lucro'
+        verbose_name_plural = 'Pessoas da distribuicao de lucro'
+
+    def __str__(self) -> str:
+        return f'{self.name} - R$ {self.amount:.2f}'
+
+
 class AuditLog(models.Model):
     user = models.ForeignKey('auth.User', on_delete=models.SET_NULL, blank=True, null=True)
     method = models.CharField(max_length=10)

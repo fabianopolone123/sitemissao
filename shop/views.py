@@ -25,7 +25,17 @@ from django.utils.crypto import constant_time_compare
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
-from .models import AuditLog, CostEntry, DonationEntry, Order, Product, ProductVariant, WhatsAppRecipient
+from .models import (
+    AuditLog,
+    CostEntry,
+    DonationEntry,
+    Order,
+    Product,
+    ProductVariant,
+    ProfitDistributionConfig,
+    ProfitDistributionPerson,
+    WhatsAppRecipient,
+)
 
 
 MANAGE_PRODUCTS_TABS = {
@@ -57,6 +67,13 @@ def _redirect_manage_products_page(request, default_tab='secao-produtos', extra_
     if extra_params:
         query.update(extra_params)
     return redirect(f"{reverse('manage_products_page')}?{urlencode(query)}")
+
+
+def _redirect_manage_reports_page(anchor='secao-lucro-por-pessoa'):
+    base_url = reverse('manage_reports_page')
+    if anchor:
+        return redirect(f'{base_url}#{anchor}')
+    return redirect(base_url)
 
 
 def _product_payload(product):
@@ -298,6 +315,14 @@ def _audit_action_label(log):
         return 'Consulta auditoria'
     if '/manage/reports/page' in path:
         return 'Consulta relatorios'
+    if '/manage/reports/profit-base/save' in path:
+        return 'Base de distribuicao de lucro salva'
+    if '/manage/reports/profit-base/reset' in path:
+        return 'Base de distribuicao de lucro resetada'
+    if '/manage/reports/profit-people/save' in path:
+        return 'Pessoa da distribuicao de lucro salva'
+    if '/manage/reports/profit-people/delete' in path:
+        return 'Pessoa da distribuicao de lucro removida'
     if '/manage/products/page' in path:
         return 'Consulta painel produtos'
     if '/manage/sales/page' in path:
@@ -963,6 +988,17 @@ def manage_reports_page(request):
     total_revenue = paid_orders.aggregate(total=Sum('total')).get('total') or Decimal('0.00')
     net_profit = total_revenue + total_donations - total_costs
     average_ticket = paid_orders.aggregate(avg=Avg('total')).get('avg') or Decimal('0.00')
+    profit_distribution_config = ProfitDistributionConfig.objects.order_by('id').first()
+    profit_distribution_people = ProfitDistributionPerson.objects.all().order_by('name')
+    profit_distribution_allocated = (
+        profit_distribution_people.aggregate(total=Sum('amount')).get('total') or Decimal('0.00')
+    )
+    profit_distribution_base = (
+        profit_distribution_config.base_amount
+        if profit_distribution_config and profit_distribution_config.base_amount is not None
+        else net_profit
+    )
+    profit_distribution_remaining = profit_distribution_base - profit_distribution_allocated
 
     daily_rows = (
         paid_orders.annotate(day=TruncDate('created_at'))
@@ -1036,6 +1072,13 @@ def manage_reports_page(request):
             'status_counter': status_counter,
             'delivered_orders': delivered_orders,
             'recent_orders': recent_orders,
+            'profit_distribution_people': profit_distribution_people,
+            'profit_distribution_base': profit_distribution_base,
+            'profit_distribution_allocated': profit_distribution_allocated,
+            'profit_distribution_remaining': profit_distribution_remaining,
+            'profit_distribution_uses_manual_base': bool(
+                profit_distribution_config and profit_distribution_config.base_amount is not None
+            ),
         },
     )
 
@@ -1361,6 +1404,88 @@ def manage_reports_export_pdf(request):
         return response
     except Exception as exc:
         return JsonResponse({'error': f'Falha ao gerar PDF: {exc}'}, status=500)
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_POST
+def manage_profit_distribution_base_save_page(request):
+    amount_text = request.POST.get('base_amount', '').strip().replace(',', '.')
+    if not amount_text:
+        messages.error(request, 'Informe o valor total para distribuir.')
+        return _redirect_manage_reports_page()
+
+    try:
+        amount = Decimal(amount_text)
+    except (InvalidOperation, ValueError):
+        messages.error(request, 'Valor invalido para distribuicao de lucro.')
+        return _redirect_manage_reports_page()
+
+    if amount < 0:
+        messages.error(request, 'O valor total nao pode ser negativo.')
+        return _redirect_manage_reports_page()
+
+    config, _ = ProfitDistributionConfig.objects.get_or_create(id=1)
+    config.base_amount = amount
+    config.save(update_fields=['base_amount', 'updated_at'])
+    messages.success(request, 'Valor total da distribuicao salvo com sucesso.')
+    return _redirect_manage_reports_page()
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_POST
+def manage_profit_distribution_base_reset_page(request):
+    config, _ = ProfitDistributionConfig.objects.get_or_create(id=1)
+    config.base_amount = None
+    config.save(update_fields=['base_amount', 'updated_at'])
+    messages.success(request, 'Distribuicao voltou a usar o lucro calculado automaticamente.')
+    return _redirect_manage_reports_page()
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_POST
+def manage_profit_distribution_person_save_page(request):
+    name = request.POST.get('name', '').strip()
+    amount_text = request.POST.get('amount', '').strip().replace(',', '.')
+
+    if not name or not amount_text:
+        messages.error(request, 'Preencha nome e valor da pessoa.')
+        return _redirect_manage_reports_page()
+
+    try:
+        amount = Decimal(amount_text)
+    except (InvalidOperation, ValueError):
+        messages.error(request, 'Valor invalido para a pessoa.')
+        return _redirect_manage_reports_page()
+
+    if amount < 0:
+        messages.error(request, 'O valor da pessoa nao pode ser negativo.')
+        return _redirect_manage_reports_page()
+
+    person = ProfitDistributionPerson.objects.filter(name__iexact=name).first()
+    if person:
+        person.name = name
+        person.amount = amount
+        person.save(update_fields=['name', 'amount', 'updated_at'])
+        messages.success(request, f'Valor de lucro atualizado para {name}.')
+    else:
+        ProfitDistributionPerson.objects.create(name=name, amount=amount)
+        messages.success(request, f'{name} adicionado(a) na distribuicao de lucro.')
+
+    return _redirect_manage_reports_page()
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_POST
+def manage_profit_distribution_person_delete_page(request, person_id):
+    person = get_object_or_404(ProfitDistributionPerson, id=person_id)
+    person_name = person.name
+    person.delete()
+    messages.success(request, f'{person_name} removido(a) da distribuicao de lucro.')
+    return _redirect_manage_reports_page()
 
 
 @login_required

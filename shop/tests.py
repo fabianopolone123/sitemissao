@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import DonationEntry, Order, Product, ProductVariant
+from .models import DonationEntry, Order, Product, ProductVariant, ProfitDistributionConfig, ProfitDistributionPerson
 
 
 class StoreFlowTests(TestCase):
@@ -140,6 +140,38 @@ class StoreFlowTests(TestCase):
         response = self.client.get(reverse('manage_reports_page'))
 
         self.assertEqual(response.status_code, 200)
+
+    def test_manage_reports_shows_profit_distribution_person(self):
+        ProfitDistributionPerson.objects.create(name='Ana', amount=Decimal('120.00'))
+
+        self.client.login(username='admin', password='senha-segura')
+        response = self.client.get(reverse('manage_reports_page'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Lucro por pessoa')
+        self.assertContains(response, 'Ana')
+        self.assertContains(response, 'R$ 120,00')
+
+    def test_manage_profit_distribution_base_save_page_saves_manual_total(self):
+        self.client.login(username='admin', password='senha-segura')
+        response = self.client.post(
+            reverse('manage_profit_distribution_base_save_page'),
+            {'base_amount': '500.00'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        config = ProfitDistributionConfig.objects.get()
+        self.assertEqual(config.base_amount, Decimal('500.00'))
+
+    def test_manage_profit_distribution_person_save_page_creates_person(self):
+        self.client.login(username='admin', password='senha-segura')
+        response = self.client.post(
+            reverse('manage_profit_distribution_person_save_page'),
+            {'name': 'Carlos', 'amount': '90.00'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(ProfitDistributionPerson.objects.filter(name='Carlos', amount=Decimal('90.00')).exists())
 
     def test_manage_reports_export_pdf_returns_pdf(self):
         Order.objects.create(

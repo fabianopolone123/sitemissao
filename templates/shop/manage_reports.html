@@ -17,11 +17,20 @@
         <div class="manage-header-actions">
             <a class="secondary-button link-button" href="{% url 'manage_products_page' %}">Voltar ao painel</a>
             <a class="secondary-button link-button" href="{% url 'manage_sales_page' %}">Vender</a>
+            <a class="secondary-button link-button" href="#secao-lucro-por-pessoa">Lucro por pessoa</a>
             <a class="secondary-button link-button" href="{% url 'manage_reports_export_pdf' %}" target="_blank">Exportar PDF</a>
         </div>
     </header>
 
     <main class="manage-page">
+        {% if messages %}
+            <section class="flash-list">
+                {% for message in messages %}
+                    <p class="flash-item">{{ message }}</p>
+                {% endfor %}
+            </section>
+        {% endif %}
+
         <section class="section-card report-summary-grid">
             <article class="report-card">
                 <div class="cart-meta">Total de pedidos</div>
@@ -66,6 +75,83 @@
                     <canvas id="chart-payment-totals"></canvas>
                 </div>
             </article>
+        </section>
+
+        <section id="secao-lucro-por-pessoa" class="section-card" style="margin-top: 14px;">
+            <div class="report-profit-head">
+                <div>
+                    <p class="panel-subtitle">Lucro por pessoa</p>
+                    <p class="cart-meta">
+                        {% if profit_distribution_uses_manual_base %}
+                            Usando valor total manual para distribuir.
+                        {% else %}
+                            Usando o lucro calculado automaticamente como base.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <div class="report-summary-grid report-profit-summary">
+                <article class="report-card">
+                    <div class="cart-meta">Base para distribuir</div>
+                    <strong>R$ {{ profit_distribution_base|floatformat:2 }}</strong>
+                </article>
+                <article class="report-card">
+                    <div class="cart-meta">Total distribuído</div>
+                    <strong>R$ {{ profit_distribution_allocated|floatformat:2 }}</strong>
+                </article>
+                <article class="report-card">
+                    <div class="cart-meta">Saldo restante</div>
+                    <strong>R$ {{ profit_distribution_remaining|floatformat:2 }}</strong>
+                </article>
+                <article class="report-card">
+                    <div class="cart-meta">Pessoas cadastradas</div>
+                    <strong>{{ profit_distribution_people|length }}</strong>
+                </article>
+            </div>
+
+            <div class="report-profit-grid">
+                <article class="report-card">
+                    <p class="panel-subtitle">Valor total para distribuir</p>
+                    <form class="checkout-form" method="post" action="{% url 'manage_profit_distribution_base_save_page' %}">
+                        {% csrf_token %}
+                        <input type="text" name="base_amount" placeholder="Valor total (ex: 500.00)" required>
+                        <button class="add-btn" type="submit">Salvar valor total</button>
+                    </form>
+                    <form method="post" action="{% url 'manage_profit_distribution_base_reset_page' %}" style="margin-top: 8px;">
+                        {% csrf_token %}
+                        <button class="secondary-button" type="submit">Usar lucro automático</button>
+                    </form>
+                </article>
+
+                <article class="report-card">
+                    <p class="panel-subtitle">Cadastrar pessoa</p>
+                    <form class="checkout-form" method="post" action="{% url 'manage_profit_distribution_person_save_page' %}">
+                        {% csrf_token %}
+                        <input type="text" name="name" placeholder="Nome da pessoa" required>
+                        <input type="text" name="amount" placeholder="Valor para a pessoa" required>
+                        <button class="add-btn" type="submit">Salvar pessoa</button>
+                    </form>
+                </article>
+            </div>
+
+            <div class="panel-list" style="margin-top: 12px;">
+                {% for person in profit_distribution_people %}
+                    <article class="panel-row panel-row-full">
+                        <div>
+                            <strong>{{ person.name }}</strong>
+                            <div class="cart-meta">Valor definido: R$ {{ person.amount|floatformat:2 }}</div>
+                            <div class="cart-meta">Atualizado em: {{ person.updated_at|date:"d/m/Y H:i" }}</div>
+                            <form method="post" action="{% url 'manage_profit_distribution_person_delete_page' person.id %}" onsubmit="return confirm('Deseja remover esta pessoa da distribuição?');" style="margin-top: 6px;">
+                                {% csrf_token %}
+                                <button type="submit" class="danger-btn">Remover</button>
+                            </form>
+                        </div>
+                    </article>
+                {% empty %}
+                    <p>Nenhuma pessoa cadastrada para distribuição.</p>
+                {% endfor %}
+            </div>
         </section>
 
         <section class="section-card report-delivered-compact" style="margin-top: 14px;">
