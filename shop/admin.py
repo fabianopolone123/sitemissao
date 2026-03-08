@@ -1,6 +1,14 @@
 from django.contrib import admin
 
-from .models import DonationEntry, Order, Product, ProductVariant, ProfitDistributionConfig, ProfitDistributionPerson
+from .models import (
+    DonationEntry,
+    Order,
+    Product,
+    ProductVariant,
+    ProfitDistributionConfig,
+    ProfitDistributionEntry,
+    ProfitDistributionPerson,
+)
 
 
 class ProductVariantInline(admin.TabularInline):
@@ -39,3 +47,10 @@ class ProfitDistributionConfigAdmin(admin.ModelAdmin):
 class ProfitDistributionPersonAdmin(admin.ModelAdmin):
     list_display = ('name', 'amount', 'updated_at')
     search_fields = ('name',)
+
+
+@admin.register(ProfitDistributionEntry)
+class ProfitDistributionEntryAdmin(admin.ModelAdmin):
+    list_display = ('person', 'amount', 'created_at')
+    list_filter = ('person', 'created_at')
+    search_fields = ('person__name',)

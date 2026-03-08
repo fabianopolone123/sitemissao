@@ -5,7 +5,15 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import DonationEntry, Order, Product, ProductVariant, ProfitDistributionConfig, ProfitDistributionPerson
+from .models import (
+    DonationEntry,
+    Order,
+    Product,
+    ProductVariant,
+    ProfitDistributionConfig,
+    ProfitDistributionEntry,
+    ProfitDistributionPerson,
+)
 
 
 class StoreFlowTests(TestCase):
@@ -142,7 +150,8 @@ class StoreFlowTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_manage_reports_shows_profit_distribution_person(self):
-        ProfitDistributionPerson.objects.create(name='Ana', amount=Decimal('120.00'))
+        person = ProfitDistributionPerson.objects.create(name='Ana', amount=Decimal('120.00'))
+        ProfitDistributionEntry.objects.create(person=person, amount=Decimal('120.00'))
 
         self.client.login(username='admin', password='senha-segura')
         response = self.client.get(reverse('manage_reports_page'))
@@ -151,6 +160,7 @@ class StoreFlowTests(TestCase):
         self.assertContains(response, 'Lucro por pessoa')
         self.assertContains(response, 'Ana')
         self.assertContains(response, 'R$ 120,00')
+        self.assertContains(response, 'Histórico de lançamentos')
 
     def test_manage_profit_distribution_base_save_page_saves_manual_total(self):
         self.client.login(username='admin', password='senha-segura')
@@ -173,18 +183,37 @@ class StoreFlowTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(ProfitDistributionPerson.objects.filter(name='Carlos', amount=Decimal('0.00')).exists())
 
-    def test_manage_profit_distribution_person_save_page_updates_amount_for_existing_person(self):
+    def test_manage_profit_distribution_person_save_page_adds_launch_for_existing_person(self):
         person = ProfitDistributionPerson.objects.create(name='Carlos', amount=Decimal('0.00'))
 
         self.client.login(username='admin', password='senha-segura')
+        first_response = self.client.post(
+            reverse('manage_profit_distribution_person_save_page'),
+            {'person_id': str(person.id), 'amount': '60.00'},
+        )
+        second_response = self.client.post(
+            reverse('manage_profit_distribution_person_save_page'),
+            {'person_id': str(person.id), 'amount': '100.00'},
+        )
+
+        self.assertEqual(first_response.status_code, 302)
+        self.assertEqual(second_response.status_code, 302)
+        person.refresh_from_db()
+        self.assertEqual(person.amount, Decimal('160.00'))
+        entries = list(person.entries.values_list('amount', flat=True))
+        self.assertEqual(entries, [Decimal('100.00'), Decimal('60.00')])
+
+    def test_manage_profit_distribution_person_save_page_creates_initial_history_when_amount_is_sent(self):
+        self.client.login(username='admin', password='senha-segura')
         response = self.client.post(
             reverse('manage_profit_distribution_person_save_page'),
-            {'person_id': str(person.id), 'amount': '90.00'},
+            {'name': 'Bruna', 'amount': '40.00'},
         )
 
         self.assertEqual(response.status_code, 302)
-        person.refresh_from_db()
-        self.assertEqual(person.amount, Decimal('90.00'))
+        person = ProfitDistributionPerson.objects.get(name='Bruna')
+        self.assertEqual(person.amount, Decimal('40.00'))
+        self.assertTrue(ProfitDistributionEntry.objects.filter(person=person, amount=Decimal('40.00')).exists())
 
     def test_manage_reports_export_pdf_returns_pdf(self):
         Order.objects.create(

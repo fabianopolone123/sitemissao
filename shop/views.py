@@ -33,6 +33,7 @@ from .models import (
     Product,
     ProductVariant,
     ProfitDistributionConfig,
+    ProfitDistributionEntry,
     ProfitDistributionPerson,
     WhatsAppRecipient,
 )
@@ -989,7 +990,7 @@ def manage_reports_page(request):
     net_profit = total_revenue + total_donations - total_costs
     average_ticket = paid_orders.aggregate(avg=Avg('total')).get('avg') or Decimal('0.00')
     profit_distribution_config = ProfitDistributionConfig.objects.order_by('id').first()
-    profit_distribution_people = ProfitDistributionPerson.objects.all().order_by('name')
+    profit_distribution_people = ProfitDistributionPerson.objects.prefetch_related('entries').all().order_by('name')
     profit_distribution_allocated = (
         profit_distribution_people.aggregate(total=Sum('amount')).get('total') or Decimal('0.00')
     )
@@ -1454,7 +1455,7 @@ def manage_profit_distribution_person_save_page(request):
     if person_id:
         person = get_object_or_404(ProfitDistributionPerson, id=person_id)
         if not amount_text:
-            messages.error(request, f'Informe o valor para {person.name}.')
+            messages.error(request, f'Informe o valor do lancamento para {person.name}.')
             return _redirect_manage_reports_page()
 
         try:
@@ -1463,13 +1464,14 @@ def manage_profit_distribution_person_save_page(request):
             messages.error(request, f'Valor invalido para {person.name}.')
             return _redirect_manage_reports_page()
 
-        if amount < 0:
-            messages.error(request, 'O valor da pessoa nao pode ser negativo.')
+        if amount <= 0:
+            messages.error(request, 'O valor do lancamento deve ser maior que zero.')
             return _redirect_manage_reports_page()
 
-        person.amount = amount
+        ProfitDistributionEntry.objects.create(person=person, amount=amount)
+        person.amount += amount
         person.save(update_fields=['amount', 'updated_at'])
-        messages.success(request, f'Valor de lucro atualizado para {person.name}.')
+        messages.success(request, f'Lancamento de R$ {amount:.2f} registrado para {person.name}.')
         return _redirect_manage_reports_page()
 
     if not name:
@@ -1491,7 +1493,9 @@ def manage_profit_distribution_person_save_page(request):
     if person:
         messages.info(request, f'{person.name} ja esta cadastrado(a).')
     else:
-        ProfitDistributionPerson.objects.create(name=name, amount=amount)
+        person = ProfitDistributionPerson.objects.create(name=name, amount=amount)
+        if amount > 0:
+            ProfitDistributionEntry.objects.create(person=person, amount=amount)
         messages.success(request, f'{name} adicionado(a) na distribuicao de lucro.')
 
     return _redirect_manage_reports_page()

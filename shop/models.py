@@ -143,6 +143,24 @@ class ProfitDistributionPerson(models.Model):
         return f'{self.name} - R$ {self.amount:.2f}'
 
 
+class ProfitDistributionEntry(models.Model):
+    person = models.ForeignKey(
+        ProfitDistributionPerson,
+        on_delete=models.CASCADE,
+        related_name='entries',
+    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        verbose_name = 'Lancamento da distribuicao de lucro'
+        verbose_name_plural = 'Lancamentos da distribuicao de lucro'
+
+    def __str__(self) -> str:
+        return f'{self.person.name} + R$ {self.amount:.2f}'
+
+
 class AuditLog(models.Model):
     user = models.ForeignKey('auth.User', on_delete=models.SET_NULL, blank=True, null=True)
     method = models.CharField(max_length=10)

@@ -690,6 +690,25 @@ h1 {
     gap: 12px;
 }
 
+.report-profit-entry-list {
+    margin-top: 10px;
+    border-top: 1px solid #ece4d8;
+    padding-top: 10px;
+}
+
+.report-profit-entry-title {
+    margin-bottom: 6px;
+}
+
+.report-profit-entry-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 4px 0;
+    font-size: 0.94rem;
+    color: #4c463f;
+}
+
 .report-chart-shell {
     position: relative;
     height: 260px;
