@@ -129,8 +129,7 @@
                     <form class="checkout-form" method="post" action="{% url 'manage_profit_distribution_person_save_page' %}">
                         {% csrf_token %}
                         <input type="text" name="name" placeholder="Nome da pessoa" required>
-                        <input type="text" name="amount" placeholder="Valor para a pessoa" required>
-                        <button class="add-btn" type="submit">Salvar pessoa</button>
+                        <button class="add-btn" type="submit">Cadastrar pessoa</button>
                     </form>
                 </article>
             </div>
@@ -142,6 +141,12 @@
                             <strong>{{ person.name }}</strong>
                             <div class="cart-meta">Valor definido: R$ {{ person.amount|floatformat:2 }}</div>
                             <div class="cart-meta">Atualizado em: {{ person.updated_at|date:"d/m/Y H:i" }}</div>
+                            <form class="checkout-form" method="post" action="{% url 'manage_profit_distribution_person_save_page' %}" style="margin-top: 8px;">
+                                {% csrf_token %}
+                                <input type="hidden" name="person_id" value="{{ person.id }}">
+                                <input type="text" name="amount" placeholder="Definir valor para {{ person.name }}" required>
+                                <button class="secondary-button" type="submit">Definir valor</button>
+                            </form>
                             <form method="post" action="{% url 'manage_profit_distribution_person_delete_page' person.id %}" onsubmit="return confirm('Deseja remover esta pessoa da distribuição?');" style="margin-top: 6px;">
                                 {% csrf_token %}
                                 <button type="submit" class="danger-btn">Remover</button>

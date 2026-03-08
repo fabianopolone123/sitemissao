@@ -163,15 +163,28 @@ class StoreFlowTests(TestCase):
         config = ProfitDistributionConfig.objects.get()
         self.assertEqual(config.base_amount, Decimal('500.00'))
 
-    def test_manage_profit_distribution_person_save_page_creates_person(self):
+    def test_manage_profit_distribution_person_save_page_creates_person_without_amount(self):
         self.client.login(username='admin', password='senha-segura')
         response = self.client.post(
             reverse('manage_profit_distribution_person_save_page'),
-            {'name': 'Carlos', 'amount': '90.00'},
+            {'name': 'Carlos'},
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertTrue(ProfitDistributionPerson.objects.filter(name='Carlos', amount=Decimal('90.00')).exists())
+        self.assertTrue(ProfitDistributionPerson.objects.filter(name='Carlos', amount=Decimal('0.00')).exists())
+
+    def test_manage_profit_distribution_person_save_page_updates_amount_for_existing_person(self):
+        person = ProfitDistributionPerson.objects.create(name='Carlos', amount=Decimal('0.00'))
+
+        self.client.login(username='admin', password='senha-segura')
+        response = self.client.post(
+            reverse('manage_profit_distribution_person_save_page'),
+            {'person_id': str(person.id), 'amount': '90.00'},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        person.refresh_from_db()
+        self.assertEqual(person.amount, Decimal('90.00'))
 
     def test_manage_reports_export_pdf_returns_pdf(self):
         Order.objects.create(

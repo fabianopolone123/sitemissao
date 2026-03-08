@@ -1447,29 +1447,49 @@ def manage_profit_distribution_base_reset_page(request):
 @user_passes_test(_can_manage)
 @require_POST
 def manage_profit_distribution_person_save_page(request):
+    person_id = request.POST.get('person_id', '').strip()
     name = request.POST.get('name', '').strip()
     amount_text = request.POST.get('amount', '').strip().replace(',', '.')
 
-    if not name or not amount_text:
-        messages.error(request, 'Preencha nome e valor da pessoa.')
+    if person_id:
+        person = get_object_or_404(ProfitDistributionPerson, id=person_id)
+        if not amount_text:
+            messages.error(request, f'Informe o valor para {person.name}.')
+            return _redirect_manage_reports_page()
+
+        try:
+            amount = Decimal(amount_text)
+        except (InvalidOperation, ValueError):
+            messages.error(request, f'Valor invalido para {person.name}.')
+            return _redirect_manage_reports_page()
+
+        if amount < 0:
+            messages.error(request, 'O valor da pessoa nao pode ser negativo.')
+            return _redirect_manage_reports_page()
+
+        person.amount = amount
+        person.save(update_fields=['amount', 'updated_at'])
+        messages.success(request, f'Valor de lucro atualizado para {person.name}.')
         return _redirect_manage_reports_page()
 
-    try:
-        amount = Decimal(amount_text)
-    except (InvalidOperation, ValueError):
-        messages.error(request, 'Valor invalido para a pessoa.')
+    if not name:
+        messages.error(request, 'Preencha o nome da pessoa.')
         return _redirect_manage_reports_page()
 
-    if amount < 0:
-        messages.error(request, 'O valor da pessoa nao pode ser negativo.')
-        return _redirect_manage_reports_page()
+    amount = Decimal('0.00')
+    if amount_text:
+        try:
+            amount = Decimal(amount_text)
+        except (InvalidOperation, ValueError):
+            messages.error(request, 'Valor invalido para a pessoa.')
+            return _redirect_manage_reports_page()
+        if amount < 0:
+            messages.error(request, 'O valor da pessoa nao pode ser negativo.')
+            return _redirect_manage_reports_page()
 
     person = ProfitDistributionPerson.objects.filter(name__iexact=name).first()
     if person:
-        person.name = name
-        person.amount = amount
-        person.save(update_fields=['name', 'amount', 'updated_at'])
-        messages.success(request, f'Valor de lucro atualizado para {name}.')
+        messages.info(request, f'{person.name} ja esta cadastrado(a).')
     else:
         ProfitDistributionPerson.objects.create(name=name, amount=amount)
         messages.success(request, f'{name} adicionado(a) na distribuicao de lucro.')
