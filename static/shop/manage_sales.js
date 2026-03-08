@@ -208,13 +208,25 @@
         const printUrl = buildPrintOrderUrl(currentOrderId);
         if (!printUrl) {
             showError('Nao foi possivel gerar a URL de impressao.');
-            return;
+            return false;
         }
         const autoPrintUrl = withAutoPrint(printUrl);
         const popup = window.open(autoPrintUrl, '_blank', 'noopener,noreferrer');
         if (!popup) {
             window.location.href = autoPrintUrl;
         }
+        return true;
+    }
+
+    async function triggerApprovedPixPrint() {
+        if (isAndroidDevice()) {
+            const opened = openRawBtIntent(currentBluetoothTicketText);
+            if (!opened) {
+                await shareBluetoothTicketFallback();
+            }
+            return;
+        }
+        openPrintTicket();
     }
 
     function renderSaleCart() {
@@ -430,13 +442,12 @@
             const payload = await parseResponse(response);
             modalStatus.textContent = payload.status_label || 'Aguardando pagamento';
             if (payload.is_paid) {
-                modalMessage.textContent = `Pagamento aprovado para a venda #${payload.order_id}.`;
-                if (isAndroidDevice() && !pixApprovedPrinted) {
-                    const opened = openRawBtIntent(currentBluetoothTicketText);
-                    if (!opened) {
-                        shareBluetoothTicketFallback();
-                    }
+                modalMessage.textContent = `Pagamento aprovado para a venda #${payload.order_id}. Enviando impressao...`;
+                if (!pixApprovedPrinted) {
                     pixApprovedPrinted = true;
+                    printTicketBtn.hidden = true;
+                    triggerApprovedPixPrint();
+                    scheduleSaleModalAutoClose();
                 }
                 stopPixStatusPolling();
             }
@@ -493,7 +504,7 @@
                 modalQr.src = `data:image/png;base64,${payload.qr_code_base64}`;
                 modalQr.hidden = false;
                 copyPixBtn.hidden = false;
-                printTicketBtn.hidden = isAndroidDevice() || !currentOrderId;
+                printTicketBtn.hidden = true;
                 stopPixStatusPolling();
                 statusPoller = window.setInterval(pollPixStatus, 5000);
                 pollPixStatus();
