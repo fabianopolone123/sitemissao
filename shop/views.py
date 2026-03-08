@@ -817,6 +817,26 @@ def _order_print_paper_height_mm(items):
     return int(paper_height)
 
 
+def _wrap_report_label(text, max_chars=22):
+    clean_text = (text or '').strip() or 'Item'
+    words = clean_text.split()
+    lines = []
+    current_line = ''
+
+    for word in words:
+        next_line = f'{current_line} {word}'.strip()
+        if len(next_line) <= max_chars or not current_line:
+            current_line = next_line
+            continue
+        lines.append(current_line)
+        current_line = word
+
+    if current_line:
+        lines.append(current_line)
+
+    return '\n'.join(lines)
+
+
 @require_GET
 def home(request):
     products = Product.objects.filter(active=True).prefetch_related('variants')
@@ -1062,7 +1082,7 @@ def manage_reports_export_pdf(request):
                 product_counter[name] = product_counter.get(name, 0) + max(qty, 0)
 
         top_products = sorted(product_counter.items(), key=lambda pair: pair[1], reverse=True)[:12]
-        chart_product_labels = [name for name, _ in top_products]
+        chart_product_labels = [_wrap_report_label(name, max_chars=24) for name, _ in top_products]
         chart_product_counts = [count for _, count in top_products]
 
         buffer = io.BytesIO()
@@ -1106,10 +1126,10 @@ def manage_reports_export_pdf(request):
         products_chart_drawing.add(String(250, 262, 'Quantidade vendida', fontSize=9))
 
         product_chart = HorizontalBarChart()
-        product_chart.x = 240
+        product_chart.x = 290
         product_chart.y = 30
         product_chart.height = 220
-        product_chart.width = 500
+        product_chart.width = 450
         product_chart.data = [chart_product_counts or [0]]
         product_chart.strokeColor = colors.HexColor('#CCCCCC')
         product_chart.valueAxis.valueMin = 0
