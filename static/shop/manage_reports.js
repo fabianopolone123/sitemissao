@@ -58,11 +58,12 @@
     const paymentTotals = getJson('chart-payment-totals-data', []);
     const wrappedProductLabels = productLabels.map((label) => wrapLabel(label, 18));
     const productsCanvas = document.getElementById('chart-products-sold');
+    const productsCanvasShell = document.getElementById('chart-products-sold-shell');
 
-    if (productsCanvas) {
+    if (productsCanvasShell) {
         const minHeight = 260;
         const dynamicHeight = Math.max(minHeight, productLabels.length * 34);
-        productsCanvas.style.height = `${dynamicHeight}px`;
+        productsCanvasShell.style.height = `${dynamicHeight}px`;
     }
 
     try {

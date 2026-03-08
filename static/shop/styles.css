@@ -672,16 +672,16 @@ h1 {
     padding: 12px;
 }
 
-.report-card canvas {
-    width: 100% !important;
-    height: 260px !important;
-    max-height: 260px;
+.report-chart-shell {
+    position: relative;
+    height: 260px;
+    min-height: 260px;
 }
 
-#chart-products-sold {
-    height: auto !important;
+.report-card canvas {
+    width: 100% !important;
+    height: 100% !important;
     max-height: none;
-    min-height: 260px;
 }
 
 .report-delivered-compact .panel-list {
