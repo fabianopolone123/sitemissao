@@ -56,13 +56,16 @@
     const productCounts = getJson('chart-product-counts', []);
     const paymentLabels = getJson('chart-payment-labels', []);
     const paymentTotals = getJson('chart-payment-totals-data', []);
-    const wrappedProductLabels = productLabels.map((label) => wrapLabel(label, 18));
+    const wrappedProductLabels = productLabels.map((label) => wrapLabel(label, 16));
     const productsCanvas = document.getElementById('chart-products-sold');
     const productsCanvasShell = document.getElementById('chart-products-sold-shell');
 
     if (productsCanvasShell) {
-        const minHeight = 260;
-        const dynamicHeight = Math.max(minHeight, productLabels.length * 34);
+        const minHeight = 320;
+        const totalWrappedLines = wrappedProductLabels.reduce((sum, lines) => {
+            return sum + Math.max(lines.length, 1);
+        }, 0);
+        const dynamicHeight = Math.max(minHeight, totalWrappedLines * 22 + productLabels.length * 12);
         productsCanvasShell.style.height = `${dynamicHeight}px`;
     }
 
@@ -84,10 +87,17 @@
                 scales: {
                     x: {
                         beginAtZero: true,
+                        ticks: {
+                            precision: 0,
+                        },
                     },
                     y: {
                         ticks: {
                             autoSkip: false,
+                            padding: 6,
+                            font: {
+                                size: 11,
+                            },
                         },
                     },
                 },
