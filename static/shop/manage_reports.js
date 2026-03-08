@@ -57,9 +57,16 @@
     const paymentLabels = getJson('chart-payment-labels', []);
     const paymentTotals = getJson('chart-payment-totals-data', []);
     const wrappedProductLabels = productLabels.map((label) => wrapLabel(label, 18));
+    const productsCanvas = document.getElementById('chart-products-sold');
+
+    if (productsCanvas) {
+        const minHeight = 260;
+        const dynamicHeight = Math.max(minHeight, productLabels.length * 34);
+        productsCanvas.style.height = `${dynamicHeight}px`;
+    }
 
     try {
-        new Chart(document.getElementById('chart-products-sold'), {
+        new Chart(productsCanvas, {
             type: 'bar',
             data: {
                 labels: wrappedProductLabels,

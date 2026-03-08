@@ -993,7 +993,7 @@ def manage_reports_page(request):
                 qty = 0
             product_counter[name] = product_counter.get(name, 0) + max(qty, 0)
 
-    top_products = sorted(product_counter.items(), key=lambda pair: pair[1], reverse=True)[:15]
+    top_products = sorted(product_counter.items(), key=lambda pair: pair[1], reverse=True)
     chart_product_labels = [name for name, _ in top_products]
     chart_product_counts = [count for _, count in top_products]
 
@@ -1081,7 +1081,7 @@ def manage_reports_export_pdf(request):
                     qty = 0
                 product_counter[name] = product_counter.get(name, 0) + max(qty, 0)
 
-        top_products = sorted(product_counter.items(), key=lambda pair: pair[1], reverse=True)[:12]
+        top_products = sorted(product_counter.items(), key=lambda pair: pair[1], reverse=True)
         chart_product_labels = [_wrap_report_label(name, max_chars=24) for name, _ in top_products]
         chart_product_counts = [count for _, count in top_products]
 
@@ -1121,14 +1121,18 @@ def manage_reports_export_pdf(request):
         elements.append(summary_table)
         elements.append(Spacer(1, 14))
 
-        products_chart_drawing = Drawing(760, 300)
-        products_chart_drawing.add(String(10, 282, 'Produtos vendidos (quantidade)', fontSize=12))
-        products_chart_drawing.add(String(250, 262, 'Quantidade vendida', fontSize=9))
+        chart_row_count = max(len(chart_product_labels), 1)
+        chart_height = max(220, chart_row_count * 20)
+        drawing_height = chart_height + 80
+
+        products_chart_drawing = Drawing(760, drawing_height)
+        products_chart_drawing.add(String(10, drawing_height - 18, 'Produtos vendidos (quantidade)', fontSize=12))
+        products_chart_drawing.add(String(300, drawing_height - 38, 'Quantidade vendida', fontSize=9))
 
         product_chart = HorizontalBarChart()
         product_chart.x = 290
         product_chart.y = 30
-        product_chart.height = 220
+        product_chart.height = chart_height
         product_chart.width = 450
         product_chart.data = [chart_product_counts or [0]]
         product_chart.strokeColor = colors.HexColor('#CCCCCC')
@@ -1156,6 +1160,28 @@ def manage_reports_export_pdf(request):
         )
         elements.append(charts_table)
         elements.append(Spacer(1, 14))
+
+        elements.append(Paragraph('Produtos vendidos consolidado', styles['Heading2']))
+        if not top_products:
+            elements.append(Paragraph('Nenhum produto vendido.', styles['Normal']))
+        else:
+            product_rows = [['Produto', 'Quantidade']]
+            for name, count in top_products:
+                product_rows.append([name, str(count)])
+            products_table = Table(product_rows, repeatRows=1, colWidths=[19.0 * cm, 4.0 * cm])
+            products_table.setStyle(
+                TableStyle(
+                    [
+                        ('GRID', (0, 0), (-1, -1), 0.35, colors.lightgrey),
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.whitesmoke),
+                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                        ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+                    ]
+                )
+            )
+            elements.append(products_table)
+            elements.append(Spacer(1, 12))
 
         elements.append(Paragraph('Relacao de doacoes', styles['Heading2']))
         if not donations.exists():

@@ -678,6 +678,12 @@ h1 {
     max-height: 260px;
 }
 
+#chart-products-sold {
+    height: auto !important;
+    max-height: none;
+    min-height: 260px;
+}
+
 .report-delivered-compact .panel-list {
     max-height: 260px;
 }
