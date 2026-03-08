@@ -141,6 +141,26 @@ class StoreFlowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
+    def test_manage_reports_export_pdf_returns_pdf(self):
+        Order.objects.create(
+            first_name='Cliente',
+            last_name='PDF',
+            whatsapp='16999990000',
+            payment_method=Order.PAYMENT_CASH,
+            total=Decimal('20.00'),
+            pix_code='',
+            items_json=[{'id': self.product.id, 'name': self.product.name, 'price': '20.00', 'quantity': 1, 'subtotal': '20.00'}],
+            is_paid=True,
+        )
+        DonationEntry.objects.create(name='Doacao PDF', amount=Decimal('5.00'))
+
+        self.client.login(username='admin', password='senha-segura')
+        response = self.client.get(reverse('manage_reports_export_pdf'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertTrue(response.content.startswith(b'%PDF'))
+
     def test_manage_reports_includes_donations_in_profit(self):
         Order.objects.create(
             first_name='Cliente',

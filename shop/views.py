@@ -1137,9 +1137,66 @@ def manage_reports_export_pdf(request):
         elements.append(charts_table)
         elements.append(Spacer(1, 14))
 
-        elements.append(Paragraph('Relacao de custos', styles['Heading2']))
+        elements.append(Paragraph('Relacao de doacoes', styles['Heading2']))
+        if not donations.exists():
+            elements.append(Paragraph('Nenhuma doacao cadastrada.', styles['Normal']))
+        else:
+            donation_rows = [['Nome', 'Valor', 'Data']]
+            for donation in donations:
+                donation_rows.append(
+                    [
+                        donation.name,
+                        f'R$ {donation.amount:.2f}',
+                        timezone.localtime(donation.created_at).strftime('%d/%m/%Y %H:%M'),
+                    ]
+                )
+            donations_table = Table(donation_rows, repeatRows=1, colWidths=[11.0 * cm, 4.0 * cm, 5.5 * cm])
+            donations_table.setStyle(
+                TableStyle(
+                    [
+                        ('GRID', (0, 0), (-1, -1), 0.35, colors.lightgrey),
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.whitesmoke),
+                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                        ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+                    ]
+                )
+            )
+            elements.append(donations_table)
+
+        elements.append(Spacer(1, 12))
+        elements.append(Paragraph('Relacao completa de custos', styles['Heading2']))
         if not costs.exists():
             elements.append(Paragraph('Nenhum custo cadastrado.', styles['Normal']))
+        else:
+            cost_rows = [['Nome', 'Valor', 'Data', 'Comprovante']]
+            for cost in costs:
+                cost_rows.append(
+                    [
+                        cost.name,
+                        f'R$ {cost.amount:.2f}',
+                        timezone.localtime(cost.created_at).strftime('%d/%m/%Y %H:%M'),
+                        'Sim' if cost.receipt_file else 'Nao',
+                    ]
+                )
+            costs_table = Table(cost_rows, repeatRows=1, colWidths=[10.0 * cm, 3.8 * cm, 5.0 * cm, 3.2 * cm])
+            costs_table.setStyle(
+                TableStyle(
+                    [
+                        ('GRID', (0, 0), (-1, -1), 0.35, colors.lightgrey),
+                        ('BACKGROUND', (0, 0), (-1, 0), colors.whitesmoke),
+                        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                        ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+                    ]
+                )
+            )
+            elements.append(costs_table)
+
+        elements.append(Spacer(1, 12))
+        elements.append(Paragraph('Comprovantes de custos', styles['Heading2']))
+        if not costs.filter(receipt_file__isnull=False).exists():
+            elements.append(Paragraph('Nenhum comprovante anexado.', styles['Normal']))
         for cost in costs:
             elements.append(Paragraph(f'<b>{cost.name}</b> - R$ {cost.amount:.2f}', styles['Normal']))
             elements.append(Paragraph(f'Data: {timezone.localtime(cost.created_at).strftime("%d/%m/%Y %H:%M")}', styles['Normal']))
@@ -1168,26 +1225,36 @@ def manage_reports_export_pdf(request):
                         elements.append(img)
                     except Exception:
                         elements.append(Paragraph('Comprovante: erro ao carregar imagem.', styles['Normal']))
+                else:
+                    elements.append(Paragraph('Comprovante: arquivo nao encontrado.', styles['Normal']))
+            else:
+                elements.append(Paragraph('Comprovante: nao anexado.', styles['Normal']))
             elements.append(Spacer(1, 8))
 
         elements.append(Spacer(1, 6))
-        elements.append(Paragraph('Relacao de pedidos', styles['Heading2']))
+        elements.append(Paragraph('Relacao completa de vendas', styles['Heading2']))
         if not orders.exists():
             elements.append(Paragraph('Nenhum pedido encontrado.', styles['Normal']))
         else:
-            order_rows = [['Pedido', 'Cliente', 'Pagamento', 'Valor', 'Data', 'Pago']]
+            order_rows = [['Pedido', 'Cliente', 'WhatsApp', 'Pagamento', 'Valor', 'Pago', 'Entregue', 'Data']]
             for order in orders:
                 order_rows.append(
                     [
                         f'#{order.id}',
                         f'{order.first_name} {order.last_name}'.strip(),
+                        order.whatsapp or '-',
                         order.get_payment_method_display(),
                         f'R$ {order.total:.2f}',
-                        timezone.localtime(order.created_at).strftime('%d/%m/%Y %H:%M'),
                         'Sim' if order.is_paid else 'Nao',
+                        'Sim' if order.is_delivered else 'Nao',
+                        timezone.localtime(order.created_at).strftime('%d/%m/%Y %H:%M'),
                     ]
                 )
-            orders_table = Table(order_rows, repeatRows=1, colWidths=[2.1 * cm, 5.0 * cm, 3.2 * cm, 2.4 * cm, 3.4 * cm, 1.8 * cm])
+            orders_table = Table(
+                order_rows,
+                repeatRows=1,
+                colWidths=[1.8 * cm, 4.0 * cm, 4.1 * cm, 2.6 * cm, 2.2 * cm, 1.7 * cm, 2.0 * cm, 3.0 * cm],
+            )
             orders_table.setStyle(
                 TableStyle(
                     [
@@ -1200,6 +1267,47 @@ def manage_reports_export_pdf(request):
                 )
             )
             elements.append(orders_table)
+
+        elements.append(Spacer(1, 12))
+        elements.append(Paragraph('Itens detalhados de cada venda', styles['Heading2']))
+        if not orders.exists():
+            elements.append(Paragraph('Nenhuma venda detalhada para exibir.', styles['Normal']))
+        for order in orders:
+            elements.append(
+                Paragraph(
+                    f'<b>Pedido #{order.id}</b> - {order.first_name} {order.last_name} - '
+                    f'{timezone.localtime(order.created_at).strftime("%d/%m/%Y %H:%M")}',
+                    styles['Normal'],
+                )
+            )
+            items = order.items_json or []
+            if not items:
+                elements.append(Paragraph('Sem itens registrados.', styles['Normal']))
+            else:
+                item_rows = [['Qtd', 'Item', 'Preco', 'Subtotal']]
+                for item in items:
+                    item_rows.append(
+                        [
+                            str(item.get('quantity', 0)),
+                            item.get('name', 'Item'),
+                            f"R$ {Decimal(str(item.get('price', '0') or '0')):.2f}",
+                            f"R$ {Decimal(str(item.get('subtotal', '0') or '0')):.2f}",
+                        ]
+                    )
+                items_table = Table(item_rows, repeatRows=1, colWidths=[1.5 * cm, 13.0 * cm, 3.0 * cm, 3.0 * cm])
+                items_table.setStyle(
+                    TableStyle(
+                        [
+                            ('GRID', (0, 0), (-1, -1), 0.3, colors.lightgrey),
+                            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#F5F1EA')),
+                            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+                            ('FONTSIZE', (0, 0), (-1, -1), 8),
+                        ]
+                    )
+                )
+                elements.append(items_table)
+            elements.append(Spacer(1, 8))
 
         doc.build(elements)
         buffer.seek(0)
