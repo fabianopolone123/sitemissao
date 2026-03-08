@@ -1169,17 +1169,16 @@ def manage_reports_export_pdf(request):
         if not costs.exists():
             elements.append(Paragraph('Nenhum custo cadastrado.', styles['Normal']))
         else:
-            cost_rows = [['Nome', 'Valor', 'Data', 'Comprovante']]
+            cost_rows = [['Nome', 'Valor', 'Data']]
             for cost in costs:
                 cost_rows.append(
                     [
                         cost.name,
                         f'R$ {cost.amount:.2f}',
                         timezone.localtime(cost.created_at).strftime('%d/%m/%Y %H:%M'),
-                        'Sim' if cost.receipt_file else 'Nao',
                     ]
                 )
-            costs_table = Table(cost_rows, repeatRows=1, colWidths=[10.0 * cm, 3.8 * cm, 5.0 * cm, 3.2 * cm])
+            costs_table = Table(cost_rows, repeatRows=1, colWidths=[12.0 * cm, 4.0 * cm, 6.0 * cm])
             costs_table.setStyle(
                 TableStyle(
                     [
