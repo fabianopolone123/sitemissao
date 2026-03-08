@@ -13,6 +13,7 @@ urlpatterns = [
     path('manage/reports/profit-base/save/', views.manage_profit_distribution_base_save_page, name='manage_profit_distribution_base_save_page'),
     path('manage/reports/profit-base/reset/', views.manage_profit_distribution_base_reset_page, name='manage_profit_distribution_base_reset_page'),
     path('manage/reports/profit-people/save/', views.manage_profit_distribution_person_save_page, name='manage_profit_distribution_person_save_page'),
+    path('manage/reports/profit-people/entries/delete/<int:entry_id>/', views.manage_profit_distribution_entry_delete_page, name='manage_profit_distribution_entry_delete_page'),
     path('manage/reports/profit-people/delete/<int:person_id>/', views.manage_profit_distribution_person_delete_page, name='manage_profit_distribution_person_delete_page'),
     path('manage/audit/page/', views.manage_audit_page, name='manage_audit_page'),
     path('manage/sales/create/', views.manage_sales_create_order, name='manage_sales_create_order'),

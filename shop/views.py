@@ -322,6 +322,8 @@ def _audit_action_label(log):
         return 'Base de distribuicao de lucro resetada'
     if '/manage/reports/profit-people/save' in path:
         return 'Pessoa da distribuicao de lucro salva'
+    if '/manage/reports/profit-people/entries/delete' in path:
+        return 'Lancamento da distribuicao de lucro removido'
     if '/manage/reports/profit-people/delete' in path:
         return 'Pessoa da distribuicao de lucro removida'
     if '/manage/products/page' in path:
@@ -1509,6 +1511,23 @@ def manage_profit_distribution_person_delete_page(request, person_id):
     person_name = person.name
     person.delete()
     messages.success(request, f'{person_name} removido(a) da distribuicao de lucro.')
+    return _redirect_manage_reports_page()
+
+
+@login_required
+@user_passes_test(_can_manage)
+@require_POST
+def manage_profit_distribution_entry_delete_page(request, entry_id):
+    entry = get_object_or_404(
+        ProfitDistributionEntry.objects.select_related('person'),
+        id=entry_id,
+    )
+    person = entry.person
+    entry_amount = entry.amount
+    person.amount = max(Decimal('0.00'), person.amount - entry_amount)
+    person.save(update_fields=['amount', 'updated_at'])
+    entry.delete()
+    messages.success(request, f'Lancamento de R$ {entry_amount:.2f} removido de {person.name}.')
     return _redirect_manage_reports_page()
 
 

@@ -215,6 +215,22 @@ class StoreFlowTests(TestCase):
         self.assertEqual(person.amount, Decimal('40.00'))
         self.assertTrue(ProfitDistributionEntry.objects.filter(person=person, amount=Decimal('40.00')).exists())
 
+    def test_manage_profit_distribution_entry_delete_page_removes_entry_and_updates_balance(self):
+        person = ProfitDistributionPerson.objects.create(name='Carlos', amount=Decimal('160.00'))
+        older_entry = ProfitDistributionEntry.objects.create(person=person, amount=Decimal('60.00'))
+        entry = ProfitDistributionEntry.objects.create(person=person, amount=Decimal('100.00'))
+
+        self.client.login(username='admin', password='senha-segura')
+        response = self.client.post(
+            reverse('manage_profit_distribution_entry_delete_page', args=[entry.id]),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        person.refresh_from_db()
+        self.assertEqual(person.amount, Decimal('60.00'))
+        self.assertFalse(ProfitDistributionEntry.objects.filter(id=entry.id).exists())
+        self.assertTrue(ProfitDistributionEntry.objects.filter(id=older_entry.id).exists())
+
     def test_manage_reports_export_pdf_returns_pdf(self):
         Order.objects.create(
             first_name='Cliente',

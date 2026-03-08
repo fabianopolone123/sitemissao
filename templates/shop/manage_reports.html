@@ -151,8 +151,14 @@
                                 <div class="cart-meta report-profit-entry-title">Histórico de lançamentos</div>
                                 {% for entry in person.entries.all %}
                                     <div class="report-profit-entry-row">
-                                        <span>+ R$ {{ entry.amount|floatformat:2 }}</span>
-                                        <span>{{ entry.created_at|date:"d/m/Y H:i" }}</span>
+                                        <div>
+                                            <div>+ R$ {{ entry.amount|floatformat:2 }}</div>
+                                            <div class="cart-meta">{{ entry.created_at|date:"d/m/Y H:i" }}</div>
+                                        </div>
+                                        <form method="post" action="{% url 'manage_profit_distribution_entry_delete_page' entry.id %}" onsubmit="return confirm('Deseja remover este lançamento?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="danger-btn danger-btn-small">Remover lançamento</button>
+                                        </form>
                                     </div>
                                 {% empty %}
                                     <div class="cart-meta">Nenhum lançamento ainda.</div>

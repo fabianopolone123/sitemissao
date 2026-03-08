@@ -703,10 +703,17 @@ h1 {
 .report-profit-entry-row {
     display: flex;
     justify-content: space-between;
+    align-items: flex-start;
     gap: 10px;
     padding: 4px 0;
     font-size: 0.94rem;
     color: #4c463f;
+}
+
+.danger-btn-small {
+    padding: 6px 10px;
+    font-size: 0.82rem;
+    white-space: nowrap;
 }
 
 .report-chart-shell {
